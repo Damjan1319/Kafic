@@ -13,14 +13,18 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    origin: corsOrigins,
     methods: ["GET", "POST"]
   }
 });
 
 // Middleware
+const corsOrigins = process.env.CORS_ORIGIN
+  ? [process.env.CORS_ORIGIN, "http://localhost:3000", "http://localhost:3001"]
+  : ["http://localhost:3000", "http://localhost:3001"];
+
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001"],
+  origin: corsOrigins,
   credentials: true
 }));
 app.use(express.json());
@@ -71,8 +75,8 @@ const authenticateToken = (req, res, next) => {
 
 // Validate token endpoint
 app.get('/api/validate-token', authenticateToken, (req, res) => {
-  res.json({ 
-    valid: true, 
+  res.json({
+    valid: true,
     user: {
       id: req.user.id,
       username: req.user.username,
@@ -86,7 +90,7 @@ app.get('/api/validate-token', authenticateToken, (req, res) => {
 // Login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  
+
   try {
     const waiter = await dbHelpers.getWaiterByUsername(username);
     if (!waiter || !bcrypt.compareSync(password, waiter.password)) {
@@ -142,10 +146,10 @@ app.get('/api/table/:qrCode', async (req, res) => {
 // Create order (public endpoint for customers)
 app.post('/api/orders', async (req, res) => {
   const { table_id, items, total_price } = req.body;
-  
+
   try {
     const newOrder = await dbHelpers.createOrder(table_id, items, total_price);
-    
+
     // Emit to waiters
     io.emit('new_order', newOrder);
 
@@ -181,14 +185,14 @@ app.get('/api/all-orders', async (req, res) => {
 // Update order status
 app.put('/api/orders/:id', authenticateToken, async (req, res) => {
   const { status } = req.body;
-  
+
   try {
     const order = await dbHelpers.updateOrderStatus(
-      parseInt(req.params.id), 
-      status, 
+      parseInt(req.params.id),
+      status,
       status === 'approved' ? req.user.id : null
     );
-    
+
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
@@ -293,19 +297,19 @@ app.get('/api/shift-stats', authenticateToken, async (req, res) => {
 // Create table
 app.post('/api/tables', authenticateToken, async (req, res) => {
   const { table_number, x_position, y_position, location } = req.body;
-  
+
   try {
     // Check if table number already exists
     const tableExists = await dbHelpers.getTableByNumber(table_number);
     if (tableExists) {
       return res.status(400).json({ message: 'Sto sa ovim brojem već postoji' });
     }
-    
+
     const tableId = await createTable(table_number, x_position, y_position, location);
-    
-    res.json({ 
+
+    res.json({
       message: 'Sto uspešno kreiran',
-      tableId 
+      tableId
     });
   } catch (error) {
     console.error('Error creating table:', error);
@@ -317,7 +321,7 @@ app.post('/api/tables', authenticateToken, async (req, res) => {
 app.put('/api/tables/:id/position', authenticateToken, async (req, res) => {
   const { x, y } = req.body;
   const tableId = parseInt(req.params.id);
-  
+
   try {
     await dbHelpers.updateTablePosition(tableId, x, y);
     res.json({ message: 'Pozicija stola ažurirana' });
