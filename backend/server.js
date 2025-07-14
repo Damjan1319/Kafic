@@ -13,18 +13,14 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: corsOrigins,
+    origin: ["http://localhost:3000", "http://localhost:3001"],
     methods: ["GET", "POST"]
   }
 });
 
 // Middleware
-const corsOrigins = process.env.CORS_ORIGIN
-  ? [process.env.CORS_ORIGIN, "http://localhost:3000", "http://localhost:3001"]
-  : ["http://localhost:3000", "http://localhost:3001"];
-
 app.use(cors({
-  origin: corsOrigins,
+  origin: ["http://localhost:3000", "http://localhost:3001"],
   credentials: true
 }));
 app.use(express.json());
