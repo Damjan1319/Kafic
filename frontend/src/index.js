@@ -9,14 +9,13 @@ import axios from 'axios';
 // Set axios base URL - use environment variable or fallback to localhost
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3003';
 axios.defaults.baseURL = API_URL;
+axios.defaults.withCredentials = true; // Enable cookies for all requests
 
 // Add axios interceptor to automatically add authorization headers
 axios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Cookies are automatically sent with requests when credentials: 'include' is set
+    // No need to manually add Authorization header
     return config;
   },
   (error) => {
@@ -29,10 +28,8 @@ axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token is invalid, clear localStorage
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Token is invalid, samo loguj, nemoj raditi redirect
+      console.warn('401 Unauthorized - korisnik nije prijavljen ili je token istekao. Prikazati login formu, ali ne raditi automatski redirect ovde.');
     }
     return Promise.reject(error);
   }

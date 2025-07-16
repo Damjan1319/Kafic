@@ -17,8 +17,10 @@ export const SocketProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    // Connect to socket regardless of authentication for customer menu
-    const newSocket = io('http://localhost:3003');
+    // Connect to socket using proxy
+    const newSocket = io('/', {
+      withCredentials: true
+    });
     setSocket(newSocket);
 
     return () => {

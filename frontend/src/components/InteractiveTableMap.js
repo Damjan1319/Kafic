@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import Notification from './Notification';
 
 const InteractiveTableMap = () => {
   // All hooks at the top
@@ -7,6 +8,7 @@ const InteractiveTableMap = () => {
   const [draggedTable, setDraggedTable] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [notification, setNotification] = useState(null);
   const mapRef = useRef(null);
   const { user } = useAuth();
 
@@ -15,9 +17,7 @@ const InteractiveTableMap = () => {
     try {
       console.log('Fetching tables with positions...');
       const response = await fetch('/api/tables-positions', {
-        headers: {
-          'Authorization': `Bearer ${user.token}`
-        }
+        credentials: 'include'
       });
       console.log('Response status:', response.status);
       if (response.ok) {
@@ -44,12 +44,14 @@ const InteractiveTableMap = () => {
         <div className="text-center">
           <div className="text-6xl mb-4">🚫</div>
           <h2 className="text-2xl font-bold text-white mb-4">Pristup odbijen</h2>
+          <p className="text-gray-300 mb-1">Access Denied</p>
           <p className="text-gray-300 mb-6">Samo administrator može da pristupi interaktivnoj mapi stolova.</p>
           <button
             onClick={() => window.history.back()}
             className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all duration-300"
           >
             Nazad
+            <span className="block text-xs opacity-75">Back</span>
           </button>
         </div>
       </div>
@@ -58,6 +60,7 @@ const InteractiveTableMap = () => {
 
   // Update table position in database
   const updateTablePosition = async (tableId, x, y) => {
+    console.log(`Sending table position update: tableId=${tableId}, x=${x}, y=${y}`);
     try {
       const response = await fetch(`/api/tables/${tableId}/position`, {
         method: 'PUT',
@@ -70,6 +73,8 @@ const InteractiveTableMap = () => {
       
       if (!response.ok) {
         console.error('Error updating table position');
+      } else {
+        console.log('Table position update successful');
       }
     } catch (error) {
       console.error('Error updating table position:', error);
@@ -112,12 +117,7 @@ const InteractiveTableMap = () => {
   };
 
   const handleMouseUp = () => {
-    if (draggedTable) {
-      const updatedTable = tables.find(t => t.id === draggedTable.id);
-      if (updatedTable) {
-        updateTablePosition(draggedTable.id, updatedTable.x_position, updatedTable.y_position);
-      }
-    }
+    // Don't save position automatically, just update local state
     setDraggedTable(null);
     setIsDragging(false);
   };
@@ -139,21 +139,64 @@ const InteractiveTableMap = () => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Interaktivna Mapa Stolova</h2>
+            <p className="text-gray-300 mb-1">Interactive Table Map</p>
             <p className="text-gray-300">
               Prevucite stolove da ih premestite. Plavi stolovi su unutrašnji, zeleni su spoljašnji.
             </p>
+            <p className="text-gray-400 text-xs">
+              Drag tables to move them. Blue tables are indoor, green are outdoor.
+            </p>
           </div>
           <button
-            onClick={() => {
-              // Save current positions
-              tables.forEach(table => {
-                updateTablePosition(table.id, table.x_position, table.y_position);
-              });
-              alert('Raspored je sačuvan!');
+            onClick={async () => {
+              try {
+                // Prepare positions array
+                const positions = tables.map(table => ({
+                  id: table.id,
+                  x: table.x_position,
+                  y: table.y_position
+                }));
+                
+                console.log('Saving layout with positions:', positions);
+                
+                // Save all table positions at once
+                const response = await fetch('/api/tables/positions', {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${user.token}`
+                  },
+                  body: JSON.stringify({ positions })
+                });
+                
+                console.log('Save layout response status:', response.status);
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  console.error('Save layout error response:', errorText);
+                  throw new Error('Failed to save layout');
+                }
+                
+                const result = await response.json();
+                console.log('Save layout result:', result);
+                
+                // Show success message
+                setNotification({
+                  message: 'Raspored je uspešno sačuvan! Svi korisnici će videti promene.',
+                  type: 'success'
+                });
+              } catch (error) {
+                console.error('Error saving layout:', error);
+                setNotification({
+                  message: 'Greška pri čuvanju rasporeda. Pokušajte ponovo.',
+                  type: 'error'
+                });
+              }
             }}
             className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-lg font-semibold"
           >
             💾 Sačuvaj raspored
+            <span className="block text-xs opacity-75">Save Layout</span>
           </button>
         </div>
 
@@ -169,6 +212,7 @@ const InteractiveTableMap = () => {
           {/* Bar representation */}
           <div className="absolute left-4 top-4 bg-amber-600 text-white px-4 py-2 rounded-lg font-bold">
             Šank
+            <span className="block text-xs opacity-75">Bar</span>
           </div>
 
           {/* Tables */}
@@ -193,18 +237,22 @@ const InteractiveTableMap = () => {
           {/* Legend */}
           <div className="absolute bottom-4 right-4 bg-gray-700 p-4 rounded-lg">
             <h4 className="text-white font-bold mb-2">Legenda:</h4>
+            <p className="text-gray-400 text-xs mb-1">Legend:</p>
             <div className="space-y-2 text-sm">
               <div className="flex items-center">
                 <div className="w-4 h-4 bg-blue-500 border-2 border-blue-600 rounded mr-2"></div>
                 <span className="text-gray-300">Unutrašnji stolovi</span>
+                <span className="text-xs opacity-75">Indoor Tables</span>
               </div>
               <div className="flex items-center">
                 <div className="w-4 h-4 bg-green-500 border-2 border-green-600 rounded mr-2"></div>
                 <span className="text-gray-300">Spoljašnji stolovi</span>
+                <span className="text-xs opacity-75">Outdoor Tables</span>
               </div>
               <div className="flex items-center">
                 <div className="w-4 h-4 bg-red-500 border-2 border-red-600 rounded mr-2"></div>
                 <span className="text-gray-300">Stolovi sa porudžbinama</span>
+                <span className="text-xs opacity-75">Tables with Orders</span>
               </div>
             </div>
           </div>
@@ -213,14 +261,28 @@ const InteractiveTableMap = () => {
         {/* Instructions */}
         <div className="mt-4 p-4 bg-gray-800 rounded-lg">
           <h3 className="text-white font-bold mb-2">Uputstvo:</h3>
+          <p className="text-gray-400 text-xs mb-1">Instructions:</p>
           <ul className="text-gray-300 text-sm space-y-1">
             <li>• Kliknite i prevucite stolove da ih premestite</li>
             <li>• Pozicije se automatski čuvaju u bazi podataka</li>
             <li>• Crveni stolovi imaju aktivne porudžbine</li>
             <li>• Plavi stolovi su unutrašnji, zeleni su spoljašnji</li>
+            <li className="text-xs opacity-75">• Click and drag tables to move them</li>
+            <li className="text-xs opacity-75">• Positions are automatically saved in database</li>
+            <li className="text-xs opacity-75">• Red tables have active orders</li>
+            <li className="text-xs opacity-75">• Blue tables are indoor, green are outdoor</li>
           </ul>
         </div>
       </div>
+
+      {/* Notification */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </div>
   );
 };

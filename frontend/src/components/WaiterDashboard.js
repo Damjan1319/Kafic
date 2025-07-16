@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { SocketContext } from '../context/SocketContext';
 import Notification from './Notification';
+import notificationService from '../utils/notifications';
 
 const WaiterDashboard = () => {
   console.log('=== WaiterDashboard component loaded ===');
@@ -13,10 +14,11 @@ const WaiterDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
   const [showTableMap, setShowTableMap] = useState(false);
-  const [showShiftStats, setShowShiftStats] = useState(false);
-  const [shiftStats, setShiftStats] = useState(null);
+  const [todayStats, setTodayStats] = useState(null);
+  const [showTodayStats, setShowTodayStats] = useState(false);
 
   console.log('WaiterDashboard render - user:', user);
+  console.log('WaiterDashboard render - user ID:', user?.id);
   console.log('WaiterDashboard render - loading:', loading);
 
   useEffect(() => {
@@ -43,9 +45,12 @@ const WaiterDashboard = () => {
         }));
         
         setNotification({
-          message: 'Nova porudžbina je primljena!',
+          message: 'Nova porudžbina je primljena! Pogledajte detalje.',
           type: 'success'
         });
+
+        // Show browser notification
+        notificationService.showNewOrderNotification(newOrder);
       });
 
       socket.on('order_updated', (updatedOrder) => {
@@ -88,6 +93,66 @@ const WaiterDashboard = () => {
           };
         }));
       });
+
+      socket.on('table_position_updated', (data) => {
+        console.log('Table position updated:', data);
+        console.log('Current tables state before update:', tables);
+        
+        // Update table position in the local state
+        setTables(prev => {
+          const updated = prev.map(table => 
+            table.id === data.tableId 
+              ? { ...table, x_position: data.x, y_position: data.y }
+              : table
+          );
+          console.log('Updated tables state:', updated);
+          return updated;
+        });
+        
+        setNotification({
+          message: `Sto ${data.tableId} je premesten na novu poziciju.`,
+          type: 'info'
+        });
+      });
+
+      socket.on('table_layout_updated', (data) => {
+        console.log('Table layout updated:', data);
+        console.log('Current tables state before update:', tables);
+        
+        // Update all table positions in the local state
+        setTables(prev => {
+          const updated = prev.map(table => {
+            const newPosition = data.positions.find(pos => pos.id === table.id);
+            return newPosition 
+              ? { ...table, x_position: newPosition.x, y_position: newPosition.y }
+              : table;
+          });
+          console.log('Updated tables state after layout update:', updated);
+          return updated;
+        });
+        
+        setNotification({
+          message: `Raspored stolova je ažuriran!`,
+          type: 'success'
+        });
+      });
+
+      // Listen for waiter statistics updates
+      socket.on('waiter_stats_updated', (data) => {
+        console.log('Waiter stats updated:', data);
+        console.log('Current user ID:', user?.id);
+        console.log('Data waiter ID:', data.waiterId);
+        
+        // Only update stats if this is for the current waiter
+        if (data.waiterId === user?.id) {
+          console.log('Updating stats for current waiter');
+          setTodayStats(data.stats);
+          setNotification({
+            message: 'Statistika je ažurirana!',
+            type: 'success'
+          });
+        }
+      });
     }
 
     return () => {
@@ -95,6 +160,9 @@ const WaiterDashboard = () => {
         socket.off('new_order');
         socket.off('order_updated');
         socket.off('order_deleted');
+        socket.off('table_position_updated');
+        socket.off('table_layout_updated');
+        socket.off('waiter_stats_updated');
       }
     };
   }, [socket]);
@@ -102,24 +170,15 @@ const WaiterDashboard = () => {
   const fetchData = async () => {
     console.log('fetchData called');
     try {
-      const token = localStorage.getItem('token');
-      console.log('Token:', token);
-      
       const [ordersRes, tablesRes, tablesPositionsRes] = await Promise.all([
         fetch('/api/orders', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include'
         }),
         fetch('/api/tables-with-orders', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include'
         }),
         fetch('/api/tables-positions-view', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include'
         })
       ]);
 
@@ -141,7 +200,7 @@ const WaiterDashboard = () => {
           tables: tablesData.length,
           tablesPositions: tablesPositionsData.length
         });
-        
+    
         console.log('Tables data:', tablesData.map(t => ({ 
           id: t.id, 
           table_number: t.table_number, 
@@ -169,7 +228,7 @@ const WaiterDashboard = () => {
       console.error('Error fetching data:', error);
       console.error('Error details:', error.message);
       setNotification({
-        message: 'Greška pri učitavanju podataka',
+        message: 'Greška pri učitavanju podataka. Molimo osvežite stranicu.',
         type: 'error'
       });
     } finally {
@@ -184,8 +243,8 @@ const WaiterDashboard = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
+        credentials: 'include',
         body: JSON.stringify({ status })
       });
 
@@ -206,10 +265,7 @@ const WaiterDashboard = () => {
             
             return {
               ...table,
-              orders: updatedOrders,
-              pendingOrders: updatedOrders.filter(o => o.status === 'pending'),
-              approvedOrders: updatedOrders.filter(o => o.status === 'approved'),
-              totalOrders: updatedOrders.length
+              orders: updatedOrders
             };
           }
           return table;
@@ -256,39 +312,104 @@ const WaiterDashboard = () => {
         }));
         
         setNotification({
-          message: 'Porudžbina je obrisana!',
+          message: 'Porudžbina je uspešno obrisana!',
           type: 'success'
         });
       }
     } catch (error) {
       console.error('Error deleting order:', error);
       setNotification({
-        message: 'Greška pri brisanju porudžbine',
+        message: 'Greška pri brisanju porudžbine. Pokušajte ponovo.',
         type: 'error'
       });
     }
   };
 
-  const fetchShiftStats = async () => {
+
+
+  const fetchTodayStats = async () => {
     try {
-      console.log('Fetching shift stats...');
-      const response = await fetch('/api/shift-stats', {
+      console.log('=== FETCHING TODAY STATS ===');
+      console.log('User:', user);
+      console.log('User ID:', user?.id);
+      console.log('Token:', localStorage.getItem('token'));
+      
+      const response = await fetch('/api/waiter-today-stats', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
-      console.log('Shift stats response status:', response.status);
+      console.log('Today stats response status:', response.status);
+      console.log('Response headers:', response.headers);
       
       if (response.ok) {
         const stats = await response.json();
-        console.log('Shift stats data:', stats);
-        setShiftStats(stats);
+        console.log('Today stats data:', stats);
+        console.log('Product stats:', stats.product_stats);
+        console.log('Product stats length:', stats.product_stats?.length);
+        console.log('Total orders:', stats.total_orders);
+        console.log('Total revenue:', stats.total_revenue);
+        
+        setTodayStats(stats);
+        setShowTodayStats(true);
+        console.log('=== STATS SET SUCCESSFULLY ===');
       } else {
-        console.error('Failed to fetch shift stats:', response.status);
+        const errorText = await response.text();
+        console.error('Failed to fetch today stats:', response.status, errorText);
       }
     } catch (error) {
-      console.error('Error fetching shift stats:', error);
+      console.error('Error fetching today stats:', error);
+      setNotification({
+        message: 'Greška pri učitavanju današnje statistike. Pokušajte ponovo.',
+        type: 'error'
+      });
+    }
+  };
+
+  const resetTodayStats = async () => {
+    try {
+      console.log('Resetting today stats...');
+      const response = await fetch('/api/waiter-reset-stats', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      console.log('Reset stats response status:', response.status);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Reset stats result:', result);
+        setNotification({
+          message: 'Smena je uspešno završena! Statistika je resetovana za novu smenu.',
+          type: 'success'
+        });
+        // Completely clear everything
+        setTodayStats(null);
+        setShowTodayStats(false);
+        setOrders([]);
+        setTables(prev => prev.map(table => ({
+          ...table,
+          orders: [],
+          pendingOrders: [],
+          approvedOrders: [],
+          totalOrders: 0
+        })));
+      } else {
+        console.error('Failed to reset stats:', response.status);
+        setNotification({
+          message: 'Greška pri resetovanju statistike. Pokušajte ponovo.',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error resetting stats:', error);
+      setNotification({
+        message: 'Greška pri resetovanju statistike. Pokušajte ponovo.',
+        type: 'error'
+      });
     }
   };
 
@@ -323,6 +444,7 @@ const WaiterDashboard = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-blue-400 mx-auto mb-4"></div>
+          <p className="text-gray-400 mb-1">Loading...</p>
           <p className="text-gray-400">Učitavanje...</p>
         </div>
       </div>
@@ -344,7 +466,10 @@ const WaiterDashboard = () => {
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-100 mb-2 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               Konobar Dashboard
             </h1>
+            <span className="text-xs opacity-75">Waiter Dashboard</span>
+            <p className="text-gray-400 text-sm sm:text-base mb-1">Waiter Dashboard</p>
             <p className="text-gray-400 text-sm sm:text-base">Dobrodošli, {user?.name}</p>
+            <p className="text-xs text-gray-500">Welcome, {user?.name}</p>
           </div>
           
           {/* Mobile: Stack buttons vertically */}
@@ -354,18 +479,25 @@ const WaiterDashboard = () => {
               className="w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg text-sm sm:text-base font-medium"
             >
               {showTableMap ? 'Sakrij mapu' : 'Mapa stolova'}
+              <span className="block text-xs opacity-75">{showTableMap ? 'Hide Map' : 'Table Map'}</span>
             </button>
 
             <button
               onClick={() => {
-                setShowShiftStats(!showShiftStats);
-                if (!showShiftStats && !shiftStats) {
-                  fetchShiftStats();
+                console.log('=== STATISTICS BUTTON CLICKED ===');
+                console.log('Current showTodayStats:', showTodayStats);
+                console.log('Current todayStats:', todayStats);
+                
+                setShowTodayStats(!showTodayStats);
+                if (!showTodayStats && !todayStats) {
+                  console.log('Fetching today stats...');
+                  fetchTodayStats();
                 }
               }}
-              className="w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg text-sm sm:text-base font-medium"
+              className="w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-lg text-sm sm:text-base font-medium"
             >
-              {showShiftStats ? 'Sakrij statistiku' : 'Statistika smene'}
+              {showTodayStats ? 'Sakrij statistiku' : 'Moja statistika'}
+              <span className="block text-xs opacity-75">{showTodayStats ? 'Hide Stats' : 'My Statistics'}</span>
             </button>
             
             <button
@@ -373,102 +505,144 @@ const WaiterDashboard = () => {
               className="w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-xl hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg text-sm sm:text-base font-medium"
             >
               Odjavi se
+              <span className="block text-xs opacity-75">Logout</span>
             </button>
           </div>
         </div>
 
-        {/* Shift Statistics Section */}
-        {showShiftStats && (
+        {/* Today Statistics Section */}
+        {showTodayStats && (
           <div className="mb-4 sm:mb-6 lg:mb-8">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-100 mb-4 sm:mb-6">Statistika smene</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 lg:mb-8">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-100">Moja statistika</h2>
+              <p className="text-gray-400 text-sm sm:text-base mb-1">My Statistics</p>
+              <button
+                onClick={resetTodayStats}
+                className="w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl hover:from-orange-700 hover:to-red-700 transition-all duration-300 shadow-lg text-sm sm:text-base font-medium mt-2 sm:mt-0"
+              >
+                🔄 Završi smenu
+              <span className="block text-xs opacity-75">End Shift</span>
+              </button>
+            </div>
             
-            {shiftStats ? (
+            {todayStats ? (
               <>
                 {/* Overall Stats */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6 lg:mb-8">
                   <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 text-center border border-gray-700/50 shadow-xl">
-                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-cyan-400 mb-1 sm:mb-2">{shiftStats.totalOrders || 0}</div>
+                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-cyan-400 mb-1 sm:mb-2">{todayStats.total_orders || 0}</div>
                     <p className="text-gray-400 text-xs sm:text-sm">Ukupno porudžbina</p>
+                    <span className="text-xs opacity-75">Total Orders</span>
                   </div>
                   <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 text-center border border-gray-700/50 shadow-xl">
-                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-emerald-400 mb-1 sm:mb-2">{Number(shiftStats.totalRevenue || 0).toFixed(0)} RSD</div>
+                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-emerald-400 mb-1 sm:mb-2">{Number(todayStats.total_revenue || 0).toFixed(0)} RSD</div>
                     <p className="text-gray-400 text-xs sm:text-sm">Ukupan pazar</p>
+                    <span className="text-xs opacity-75">Total Revenue</span>
                   </div>
                   <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 text-center border border-gray-700/50 shadow-xl">
-                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-indigo-400 mb-1 sm:mb-2">{Number(shiftStats.averageOrderValue || 0).toFixed(0)} RSD</div>
+                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-indigo-400 mb-1 sm:mb-2">{Number(todayStats.average_order_value || 0).toFixed(0)} RSD</div>
                     <p className="text-gray-400 text-xs sm:text-sm">Prosečna porudžbina</p>
+                    <span className="text-xs opacity-75">Average Order</span>
                   </div>
                   <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 text-center border border-gray-700/50 shadow-xl">
-                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-purple-400 mb-1 sm:mb-2">{shiftStats.totalItems || 0}</div>
+                    <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-purple-400 mb-1 sm:mb-2">{todayStats.total_items || 0}</div>
                     <p className="text-gray-400 text-xs sm:text-sm">Ukupno stavki</p>
+                    <span className="text-xs opacity-75">Total Items</span>
                   </div>
                 </div>
 
-            {/* Product Stats */}
-            {shiftStats.productStats && shiftStats.productStats.length > 0 && (
-              <div className="mb-4 sm:mb-6 lg:mb-8">
-                <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-100 mb-3 sm:mb-4 lg:mb-6">Prodato u smeni</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-                  {shiftStats.productStats.map((product, index) => (
-                    <div key={index} className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 border border-gray-700/50 shadow-xl hover:shadow-2xl transition-all duration-300">
-                      <h4 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-100 mb-2 sm:mb-3 lg:mb-4">{product.name}</h4>
-                      <div className="space-y-1 sm:space-y-2">
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="text-gray-400">Prodato komada:</span>
-                          <span className="text-gray-100 font-semibold">{product.quantitySold}</span>
+                {/* Product Stats */}
+                {console.log('Rendering product stats:', todayStats.product_stats)}
+                {todayStats.product_stats && todayStats.product_stats.length > 0 ? (
+                  <div className="mb-4 sm:mb-6 lg:mb-8">
+                    <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-100 mb-3 sm:mb-4 lg:mb-6">Prodato u smeni</h3>
+                    <p className="text-gray-400 text-sm sm:text-base mb-1">Sold in Shift</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+                      {todayStats.product_stats.map((product, index) => (
+                        <div key={index} className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 border border-gray-700/50 shadow-xl hover:shadow-2xl transition-all duration-300">
+                          <h4 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-100 mb-2 sm:mb-3 lg:mb-4">{product.name}</h4>
+                          <div className="space-y-1 sm:space-y-2">
+                            <div className="flex justify-between text-xs sm:text-sm">
+                              <span className="text-gray-400">Prodato komada:</span>
+                              <span className="text-xs opacity-75">Sold pieces:</span>
+                              <span className="text-gray-100 font-semibold">{product.quantitySold}</span>
+                            </div>
+                            <div className="flex justify-between text-xs sm:text-sm">
+                              <span className="text-gray-400">Prihod:</span>
+                              <span className="text-xs opacity-75">Revenue:</span>
+                              <span className="text-emerald-400 font-semibold">{Number(product.totalRevenue).toFixed(0)} RSD</span>
+                            </div>
+                            <div className="flex justify-between text-xs sm:text-sm">
+                              <span className="text-gray-400">Porudžbina:</span>
+                              <span className="text-xs opacity-75">Orders:</span>
+                              <span className="text-gray-100 font-semibold">{product.orders}</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="text-gray-400">Prihod:</span>
-                          <span className="text-emerald-400 font-semibold">{Number(product.totalRevenue || 0).toFixed(0)} RSD</span>
-                        </div>
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="text-gray-400">Porudžbina:</span>
-                          <span className="text-gray-100 font-semibold">{product.orders}</span>
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                ) : (
+                  <div className="mb-4 sm:mb-6 lg:mb-8">
+                    <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-100 mb-3 sm:mb-4 lg:mb-6">Prodato u smeni</h3>
+                    <p className="text-gray-400 text-sm sm:text-base mb-1">Sold in Shift</p>
+                    <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-6 sm:p-8 lg:p-12 text-center border border-gray-700/50 shadow-xl">
+                      <div className="text-3xl sm:text-4xl lg:text-6xl mb-3 sm:mb-4">📦</div>
+                      <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-100 mb-2">Još nema prodaje</h3>
+                      <p className="text-gray-400 text-sm sm:text-base mb-1">No sales yet</p>
+                      <p className="text-gray-400 text-sm sm:text-base">Kada odobrite porudžbine, ovde će se prikazati šta ste prodali</p>
+                    </div>
+                  </div>
+                )}
 
-            {/* Shift Info */}
-            <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 border border-gray-700/50 shadow-xl">
-              <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-100 mb-2 sm:mb-3 lg:mb-4">Informacije o smeni</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <p className="text-gray-400 text-xs sm:text-sm">Konobar:</p>
-                  <p className="text-gray-100 font-semibold text-sm sm:text-base">{user?.name}</p>
+                {/* Shift Info */}
+                <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 border border-gray-700/50 shadow-xl">
+                  <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-100 mb-2 sm:mb-3 lg:mb-4">Informacije o smeni</h3>
+                  <p className="text-gray-400 text-xs sm:text-sm mb-1">Shift Information</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                      <p className="text-gray-400 text-xs sm:text-sm">Konobar:</p>
+                      <span className="text-xs opacity-75">Waiter:</span>
+                      <p className="text-gray-100 font-semibold text-sm sm:text-base">{user?.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs sm:text-sm">Datum:</p>
+                      <span className="text-xs opacity-75">Date:</span>
+                      <p className="text-gray-100 font-semibold text-sm sm:text-base">{new Date().toLocaleDateString('sr-RS')}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs sm:text-sm">Početak smene:</p>
+                      <span className="text-xs opacity-75">Shift Start:</span>
+                      <p className="text-gray-100 font-semibold text-sm sm:text-base">{todayStats.shift_start ? new Date(todayStats.shift_start).toLocaleTimeString('sr-RS') : 'N/A'}</p>
+                      <span className="text-xs opacity-75">Not Available</span>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs sm:text-sm">Status:</p>
+                      <span className="text-xs opacity-75">Status:</span>
+                      <p className="text-emerald-400 font-semibold text-sm sm:text-base">Aktivna smena</p>
+                      <span className="text-xs opacity-75">Active Shift</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-400 text-xs sm:text-sm">Datum:</p>
-                  <p className="text-gray-100 font-semibold text-sm sm:text-base">{new Date().toLocaleDateString('sr-RS')}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs sm:text-sm">Vreme:</p>
-                  <p className="text-gray-100 font-semibold text-sm sm:text-base">{new Date().toLocaleTimeString('sr-RS')}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs sm:text-sm">Status:</p>
-                  <p className="text-emerald-400 font-semibold text-sm sm:text-base">Aktivna smena</p>
-                </div>
-              </div>
-            </div>
               </>
             ) : (
               <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-6 sm:p-8 lg:p-12 text-center border border-gray-700/50 shadow-xl">
                 <div className="text-3xl sm:text-4xl lg:text-6xl mb-3 sm:mb-4">📊</div>
                 <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-100 mb-2">Statistika se učitava</h3>
+                <p className="text-gray-400 text-sm sm:text-base mb-1">Loading statistics...</p>
                 <p className="text-gray-400 text-sm sm:text-base">Molimo sačekajte...</p>
               </div>
             )}
           </div>
         )}
 
+
+
         {/* Table Map Section */}
         {showTableMap && (
           <div className="mb-4 sm:mb-6 lg:mb-8">
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-100 mb-3 sm:mb-4 lg:mb-6">Mapa stolova</h2>
+            <p className="text-gray-400 text-sm sm:text-base mb-1">Table Map</p>
             
             {/* Mobile: Scrollable container */}
             <div className="relative w-full h-[400px] sm:h-[500px] lg:h-[600px] bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
@@ -530,7 +704,7 @@ const WaiterDashboard = () => {
                     );
                   })}
                   {/* Šank ili bar */}
-                  <div className="absolute left-0 top-0 h-full w-12 sm:w-16 bg-blue-900 opacity-80 flex items-center justify-center text-white font-bold text-xs rotate-[-90deg]" style={{zIndex:1}}>ŠANK</div>
+                  <div className="absolute left-0 top-0 h-full w-12 sm:w-16 bg-blue-900 opacity-80 flex items-center justify-center text-white font-bold text-xs rotate-[-90deg]" style={{zIndex:1}}>ŠANK<br/>BAR</div>
                 </div>
               </div>
             </div>
@@ -540,11 +714,13 @@ const WaiterDashboard = () => {
         {/* Orders Section */}
         <div className="space-y-4 sm:space-y-6">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-100 mb-3 sm:mb-4 lg:mb-6">Porudžbine</h2>
+          <p className="text-gray-400 text-sm sm:text-base mb-1">Orders</p>
           
           {sortedOrders.length === 0 ? (
             <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-6 sm:p-8 lg:p-12 text-center border border-gray-700/50 shadow-xl">
               <div className="text-3xl sm:text-4xl lg:text-6xl mb-3 sm:mb-4">🍽️</div>
               <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-100 mb-2">Nema porudžbina</h3>
+              <p className="text-gray-400 text-sm sm:text-base mb-1">No orders</p>
               <p className="text-gray-400 text-sm sm:text-base">Porudžbine će se ovde prikazati kada stignu</p>
             </div>
           ) : (
@@ -557,9 +733,11 @@ const WaiterDashboard = () => {
                       <div>
                         <h3 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-100">
                           Porudžbina #{order.order_number}
+                          <span className="text-xs opacity-75">Order #{order.order_number}</span>
                         </h3>
                         <p className="text-xs sm:text-sm text-gray-400">
                           Sto {order.table_id} • {new Date(order.created_at).toLocaleString('sr-RS')}
+                          <span className="text-xs opacity-75">Table {order.table_id} • {new Date(order.created_at).toLocaleString('en-US')}</span>
                         </p>
                       </div>
                     </div>
@@ -583,6 +761,7 @@ const WaiterDashboard = () => {
                             <div>
                               <h4 className="font-semibold text-gray-100 text-xs sm:text-sm">{item.name}</h4>
                               <p className="text-xs text-gray-400">{item.price} RSD komad</p>
+                              <span className="text-xs opacity-75">RSD per piece</span>
                             </div>
                           </div>
                           <span className="text-xs sm:text-sm font-bold text-emerald-400">
@@ -600,6 +779,7 @@ const WaiterDashboard = () => {
                           className="w-full sm:w-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg text-xs sm:text-sm lg:text-base font-medium"
                         >
                           Odobri porudžbinu
+                          <span className="block text-xs opacity-75">Approve Order</span>
                         </button>
                       )}
                       {order.status === 'approved' && (
@@ -608,6 +788,7 @@ const WaiterDashboard = () => {
                           className="w-full sm:w-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg text-xs sm:text-sm lg:text-base font-medium"
                         >
                           Završi porudžbinu
+                          <span className="block text-xs opacity-75">Complete Order</span>
                         </button>
                       )}
                       {order.status === 'completed' && (
@@ -616,6 +797,7 @@ const WaiterDashboard = () => {
                           className="w-full sm:w-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-lg hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg text-xs sm:text-sm lg:text-base font-medium"
                         >
                           Obriši porudžbinu
+                          <span className="block text-xs opacity-75">Delete Order</span>
                         </button>
                       )}
                     </div>

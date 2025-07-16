@@ -11,6 +11,17 @@ export const useAuth = () => {
   return context;
 };
 
+// Loading component for authentication
+const AuthLoading = () => (
+  <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-gray-100 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-600 border-t-blue-400 mx-auto mb-4"></div>
+      <p className="text-gray-400 mb-1">Proveravanje autentifikacije...</p>
+      <p className="text-gray-400">Checking authentication...</p>
+    </div>
+  </div>
+);
+
 export const AuthProvider = ({ children }) => {
   console.log('=== AuthProvider loaded ===');
   
@@ -19,60 +30,58 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const validateToken = async () => {
-      const token = localStorage.getItem('token');
-      const userData = localStorage.getItem('user');
+    const checkAuth = async () => {
+      console.log('Checking authentication from cookie...');
       
-      console.log('Validating token:', { token: !!token, userData: !!userData });
-      
-      if (token && userData) {
-        try {
-          const parsedUser = JSON.parse(userData);
-          console.log('Parsed user:', parsedUser);
-          
-          // Validate token with backend
-          const response = await axios.get('/api/validate-token', {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          if (response.data.valid) {
-            console.log('Token is valid, setting user');
-            setUser(parsedUser);
-            setIsAuthenticated(true);
-          } else {
-            console.log('Token is invalid, clearing localStorage');
-            // Token is invalid, clear localStorage
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-          }
-        } catch (error) {
-          console.error('Token validation error:', error);
-          // Token is invalid or expired, clear localStorage
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+      try {
+        // Check if user is logged in using /api/me endpoint
+        const response = await axios.get('/api/me', {
+          withCredentials: true // omogućava slanje HttpOnly cookie-ja
+        });
+        
+        if (response.data.user) {
+          console.log('User is authenticated, setting user from backend response');
+          setUser(response.data.user);
+          setIsAuthenticated(true);
+        } else {
+          console.log('No user data, clearing user state');
+          setUser(null);
+          setIsAuthenticated(false);
         }
-      } else {
-        console.log('No token or userData found');
+      } catch (error) {
+        console.error('Auth check error:', error);
+        
+        // Only clear user state on specific auth errors
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          console.log('Auth error, clearing user state');
+          setUser(null);
+          setIsAuthenticated(false);
+        } else {
+          // For network errors or other issues, keep the user logged in
+          console.log('Network error, keeping user logged in');
+        }
       }
-      
+    
       setLoading(false);
     };
 
-    validateToken();
+    checkAuth();
   }, []);
 
-  const login = (userData, token) => {
-    console.log('Login called with:', { userData, token });
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+  const login = async (userData) => {
+    console.log('Login called with:', { userData });
     setUser(userData);
     setIsAuthenticated(true);
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const logout = async () => {
+    try {
+      // Call logout endpoint to clear cookie
+      await axios.post('/api/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -87,9 +96,10 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {loading ? <AuthLoading /> : children}
     </AuthContext.Provider>
   );
 };
 
+// Export AuthContext for components that need direct access
 export { AuthContext }; 
