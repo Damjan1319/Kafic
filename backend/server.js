@@ -72,7 +72,7 @@ const loadWaiters = async () => {
   try {
     await initDatabase();
     await loadWaiters();
-    
+
     // Create waiter statistics table
     try {
       await dbHelpers.createWaiterStatsTable();
@@ -82,7 +82,7 @@ const loadWaiters = async () => {
     }
 
 
-    
+
     console.log('Server initialized successfully');
   } catch (error) {
     console.error('Error initializing server:', error);
@@ -117,7 +117,7 @@ app.get('/api/validate-token', authenticateToken, async (req, res) => {
     if (!waiter) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json({
       valid: true,
       user: {
@@ -141,7 +141,7 @@ app.get('/api/me', authenticateToken, async (req, res) => {
     if (!waiter) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json({
       user: {
         id: waiter.id,
@@ -161,17 +161,17 @@ app.get('/api/me', authenticateToken, async (req, res) => {
 // Login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  
+
   // Validate login data
   const validationErrors = validateLoginData(req.body);
   if (validationErrors.length > 0) {
     logger.warn('Login validation failed', { username, errors: validationErrors });
-    return res.status(400).json({ 
-      error: 'Validation failed', 
-      details: validationErrors 
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: validationErrors
     });
   }
-  
+
   try {
     const waiter = await dbHelpers.getWaiterByUsername(username);
     if (!waiter || !bcrypt.compareSync(password, waiter.password)) {
@@ -249,23 +249,23 @@ app.get('/api/table/:qrCode', async (req, res) => {
 // Create order (public endpoint for customers)
 app.post('/api/orders', async (req, res) => {
   const { table_id, items, total_price } = req.body;
-  
+
   // Validate order data
   const validationErrors = validateOrderData(req.body);
   if (validationErrors.length > 0) {
     logger.warn('Order validation failed', { table_id, errors: validationErrors });
-    return res.status(400).json({ 
-      error: 'Validation failed', 
-      details: validationErrors 
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: validationErrors
     });
   }
-  
+
   try {
     const newOrder = await dbHelpers.createOrder(table_id, items, total_price);
-    
+
     // Log order creation
     logger.logOrder(newOrder, 'created');
-    
+
     // Emit to waiters
     io.emit('new_order', newOrder);
 
@@ -312,7 +312,7 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
       logger.warn('Order not found for update', { orderId: req.params.id, userId: req.user.id });
       return res.status(404).json({ error: 'Order not found' });
     }
-    
+
     const wasAlreadyApproved = currentOrder.status === 'approved';
     const wasAlreadyCompleted = currentOrder.status === 'completed';
     console.log(`Order ${currentOrder.id} current status: ${currentOrder.status}, new status: ${status}, wasAlreadyApproved: ${wasAlreadyApproved}, wasAlreadyCompleted: ${wasAlreadyCompleted}`);
@@ -335,12 +335,12 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
     console.log(`Status: ${status}`);
     console.log(`Is waiter: ${req.user.role === 'waiter'}`);
     console.log(`Is approved or completed: ${status === 'approved' || status === 'completed'}`);
-    
+
     if ((status === 'approved' || status === 'completed') && req.user.role === 'waiter') {
       // For completed orders, we need to check if it was already completed
       const wasAlreadyCompleted = currentOrder.status === 'completed';
       const shouldUpdateStats = !wasAlreadyApproved || (status === 'completed' && !wasAlreadyCompleted);
-      
+
       console.log(`=== STATISTICS UPDATE CHECK ===`);
       console.log(`Waiter ID: ${req.user.id}`);
       console.log(`Order ID: ${order.id}`);
@@ -348,36 +348,36 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
       console.log(`Was already approved: ${wasAlreadyApproved}`);
       console.log(`Was already completed: ${wasAlreadyCompleted}`);
       console.log(`Should update stats: ${shouldUpdateStats}`);
-      
+
       if (shouldUpdateStats) {
         try {
           console.log(`=== CALLING updateWaiterStats ===`);
           console.log(`Waiter ID: ${req.user.id}`);
           console.log(`Order data:`, JSON.stringify(order, null, 2));
-          
+
           await dbHelpers.updateWaiterStats(req.user.id, order);
           console.log(`=== STATISTICS UPDATED SUCCESSFULLY ===`);
-          logger.info('Updated waiter statistics for approved/completed order', { 
-            waiterId: req.user.id, 
+          logger.info('Updated waiter statistics for approved/completed order', {
+            waiterId: req.user.id,
             orderId: order.id,
             status: status
           });
-          
+
           // Emit socket event to notify waiter about stats update
           const updatedStats = await dbHelpers.getWaiterTodayStats(req.user.id);
-          io.emit('waiter_stats_updated', { 
-            waiterId: req.user.id, 
-            stats: updatedStats 
+          io.emit('waiter_stats_updated', {
+            waiterId: req.user.id,
+            stats: updatedStats
           });
           console.log(`=== SOCKET EVENT EMITTED: waiter_stats_updated ===`);
         } catch (statsError) {
           console.log(`=== STATISTICS UPDATE ERROR ===`);
           console.log('Error:', statsError.message);
           console.log('Error stack:', statsError.stack);
-          logger.error('Error updating waiter statistics', { 
-            waiterId: req.user.id, 
-            orderId: order.id, 
-            error: statsError.message 
+          logger.error('Error updating waiter statistics', {
+            waiterId: req.user.id,
+            orderId: order.id,
+            error: statsError.message
           });
           // Don't fail the order update if stats update fails
         }
@@ -399,11 +399,11 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
         console.log(`User role: ${req.user.role}`);
         console.log(`Order items count: ${order.items.length}`);
         console.log('Order items details:', JSON.stringify(order.items, null, 2));
-        
+
         await dbHelpers.decreaseInventory(order.items);
-        
+
         console.log(`=== INVENTORY DECREASE FOR ALL USERS COMPLETED ===`);
-        logger.info('Decreased inventory for approved order', { 
+        logger.info('Decreased inventory for approved order', {
           orderId: order.id,
           items: order.items,
           userRole: req.user.role
@@ -411,9 +411,9 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
       } catch (inventoryError) {
         console.log(`=== INVENTORY DECREASE FOR ALL USERS ERROR ===`);
         console.log('Error:', inventoryError.message);
-        logger.error('Error decreasing inventory', { 
+        logger.error('Error decreasing inventory', {
           orderId: order.id,
-          error: inventoryError.message 
+          error: inventoryError.message
         });
         // Don't fail the order update if inventory update fails
       }
@@ -437,10 +437,10 @@ app.put('/api/orders/:id', authenticateToken, async (req, res) => {
 app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
   try {
     const result = await dbHelpers.deleteOrder(parseInt(req.params.id));
-    
+
     // Log order deletion
     logger.logUserAction(req.user, 'delete_order', { orderId: req.params.id });
-    
+
     io.emit('order_deleted', { id: parseInt(req.params.id) });
     res.json(result);
   } catch (error) {
@@ -533,7 +533,7 @@ app.get('/api/waiter-today-stats', authenticateToken, async (req, res) => {
     console.log('User from token:', req.user);
     console.log('User ID from token:', req.user.id);
     console.log('User role from token:', req.user.role);
-    
+
     const stats = await dbHelpers.getWaiterTodayStats(req.user.id);
     console.log('Stats result:', stats);
     res.json(stats);
@@ -572,7 +572,7 @@ app.get('/api/waiter-historical-stats', authenticateToken, async (req, res) => {
 app.post('/api/logs', async (req, res) => {
   try {
     const { type, message, stack, componentStack, url, userAgent, timestamp } = req.body;
-    
+
     logger.error('Frontend error', {
       type,
       message,
@@ -582,7 +582,7 @@ app.post('/api/logs', async (req, res) => {
       userAgent,
       timestamp
     });
-    
+
     res.json({ success: true });
   } catch (error) {
     logger.error('Error logging frontend error', { error: error.message });
@@ -623,16 +623,16 @@ app.put('/api/tables/:id/position', authenticateToken, async (req, res) => {
   try {
     const result = await dbHelpers.updateTablePosition(tableId, x, y);
     console.log(`Table position update result:`, result);
-    
+
     // Emit WebSocket event to notify all clients about table position update
-    io.emit('table_position_updated', { 
-      tableId, 
-      x, 
+    io.emit('table_position_updated', {
+      tableId,
+      x,
       y,
-      updatedBy: req.user.id 
+      updatedBy: req.user.id
     });
     console.log(`WebSocket event 'table_position_updated' emitted for table ${tableId}`);
-    
+
     res.json({ message: 'Pozicija stola ažurirana' });
   } catch (error) {
     console.error('Error updating table position:', error);
@@ -648,19 +648,19 @@ app.put('/api/tables/positions', authenticateToken, async (req, res) => {
 
   try {
     // Update all positions
-    const updatePromises = positions.map(pos => 
+    const updatePromises = positions.map(pos =>
       dbHelpers.updateTablePosition(pos.id, pos.x, pos.y)
     );
-    
+
     await Promise.all(updatePromises);
-    
+
     // Emit WebSocket event to notify all clients about layout update
-    io.emit('table_layout_updated', { 
+    io.emit('table_layout_updated', {
       positions,
-      updatedBy: req.user.id 
+      updatedBy: req.user.id
     });
     console.log(`WebSocket event 'table_layout_updated' emitted for ${positions.length} tables`);
-    
+
     res.json({ message: 'Raspored stolova ažuriran' });
   } catch (error) {
     console.error('Error updating table positions:', error);
@@ -717,7 +717,7 @@ app.put('/api/inventory/:id', authenticateToken, async (req, res) => {
 // Global error handling middleware
 app.use((error, req, res, next) => {
   logger.logError(error, req);
-  
+
   // Send appropriate response
   res.status(500).json({
     error: 'Internal server error',

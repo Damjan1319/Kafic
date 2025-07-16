@@ -190,124 +190,126 @@ const insertDefaultData = async () => {
     }
 
     // Clear existing orders and menu items, then insert comprehensive menu
-    await connection.execute('DELETE FROM order_items');
-    await connection.execute('DELETE FROM orders');
-    await connection.execute('DELETE FROM menu_items');
+    // ZAKOMENTARISANO - ne ubacujemo testne stavke menija
+    // await connection.execute('DELETE FROM order_items');
+    // await connection.execute('DELETE FROM orders');
+    // await connection.execute('DELETE FROM menu_items');
     
-    const menuItems = [
-        // KAFE
-        { name: 'Espresso', category: 'coffee', price: 120, description: 'Classic Italian espresso', stock: 100 },
-        { name: 'Cappuccino', category: 'coffee', price: 150, description: 'Espresso with steamed milk foam', stock: 100 },
-        { name: 'Latte', category: 'coffee', price: 160, description: 'Espresso with steamed milk', stock: 100 },
-        { name: 'Machiato', category: 'coffee', price: 130, description: 'Espresso with a dash of milk', stock: 100 },
-        { name: 'Americano', category: 'coffee', price: 140, description: 'Espresso with hot water', stock: 100 },
-        { name: 'Turska Kafa', category: 'coffee', price: 100, description: 'Traditional Turkish coffee', stock: 100 },
-        { name: 'Nescafe', category: 'coffee', price: 110, description: 'Instant coffee with hot water', stock: 100 },
-        { name: 'Mocha', category: 'coffee', price: 170, description: 'Espresso with chocolate and milk', stock: 100 },
-        { name: 'Flat White', category: 'coffee', price: 160, description: 'Espresso with microfoam', stock: 100 },
-        { name: 'Ristretto', category: 'coffee', price: 120, description: 'Concentrated espresso shot', stock: 100 },
-        
-        // SOKOVI
-        { name: 'Coca Cola', category: 'soda', price: 120, description: 'Classic carbonated soft drink', stock: 100 },
-        { name: 'Fanta', category: 'soda', price: 120, description: 'Orange flavored soda', stock: 100 },
-        { name: 'Sprite', category: 'soda', price: 120, description: 'Lemon-lime flavored soda', stock: 100 },
-        { name: 'Pepsi', category: 'soda', price: 120, description: 'Pepsi cola soft drink', stock: 100 },
-        { name: 'Schweppes', category: 'soda', price: 130, description: 'Premium tonic water', stock: 100 },
-        { name: 'Red Bull', category: 'energy', price: 180, description: 'Energy drink with caffeine', stock: 100 },
-        { name: 'Monster', category: 'energy', price: 200, description: 'High energy drink', stock: 100 },
-        { name: 'Cedevita', category: 'soda', price: 100, description: 'Vitamin drink powder', stock: 100 },
-        
-        // ŽESTOKA PIĆA
-        { name: 'Rakija šljiva', category: 'spirits', price: 250, description: 'Plum brandy (šljivovica)', stock: 100 },
-        { name: 'Rakija kajsija', category: 'spirits', price: 270, description: 'Apricot brandy', stock: 100 },
-        { name: 'Rakija dunja', category: 'spirits', price: 270, description: 'Quince brandy', stock: 100 },
-        { name: 'Rakija loza', category: 'spirits', price: 250, description: 'Grape brandy', stock: 100 },
-        { name: 'Vodka', category: 'spirits', price: 300, description: 'Premium vodka shot', stock: 100 },
-        { name: 'Whiskey Jameson', category: 'spirits', price: 350, description: 'Jameson Irish whiskey', stock: 100 },
-        { name: 'Whiskey Jack Daniel’s', category: 'spirits', price: 370, description: 'Jack Daniel’s Tennessee whiskey', stock: 100 },
-        { name: 'Whiskey Ballantine’s', category: 'spirits', price: 360, description: 'Ballantine’s Scotch whisky', stock: 100 },
-        { name: 'Rum Havana Club', category: 'spirits', price: 320, description: 'Havana Club white rum', stock: 100 },
-        { name: 'Rum Captain Morgan', category: 'spirits', price: 340, description: 'Captain Morgan spiced rum', stock: 100 },
-        { name: 'Gin Beefeater', category: 'spirits', price: 340, description: 'Beefeater London dry gin', stock: 100 },
-        { name: 'Gin Bombay Sapphire', category: 'spirits', price: 360, description: 'Bombay Sapphire gin', stock: 100 },
-        { name: 'Tequila Olmeca', category: 'spirits', price: 360, description: 'Olmeca tequila shot', stock: 100 },
-        { name: 'Tequila Sierra', category: 'spirits', price: 370, description: 'Sierra tequila shot', stock: 100 },
-        { name: 'Cognac Hennessy', category: 'spirits', price: 400, description: 'Hennessy French cognac', stock: 100 },
-        { name: 'Cognac Courvoisier', category: 'spirits', price: 420, description: 'Courvoisier French cognac', stock: 100 },
-        { name: 'Absinthe', category: 'spirits', price: 450, description: 'Green fairy spirit', stock: 100 },
-        { name: 'Jägermeister', category: 'spirits', price: 320, description: 'Herbal liqueur', stock: 100 },
-        { name: 'Baileys', category: 'spirits', price: 320, description: 'Irish cream liqueur', stock: 100 },
-        { name: 'Amaretto', category: 'spirits', price: 320, description: 'Almond liqueur', stock: 100 },
-        
-        // PIVA
-        { name: 'Jelen', category: 'beer', price: 150, description: 'Serbian lager beer', stock: 100 },
-        { name: 'Lav', category: 'beer', price: 140, description: 'Serbian lager beer', stock: 100 },
-        { name: 'Zaječarsko', category: 'beer', price: 150, description: 'Serbian lager beer', stock: 100 },
-        { name: 'Heineken', category: 'beer', price: 180, description: 'Dutch premium lager', stock: 100 },
-        { name: 'Corona', category: 'beer', price: 200, description: 'Mexican lager with lime', stock: 100 },
-        { name: 'Stella Artois', category: 'beer', price: 190, description: 'Belgian premium lager', stock: 100 },
-        { name: 'Tuborg', category: 'beer', price: 160, description: 'Danish lager beer', stock: 100 },
-        { name: 'Guinness', category: 'beer', price: 220, description: 'Irish dry stout', stock: 100 },
-        { name: 'Paulaner', category: 'beer', price: 230, description: 'German wheat beer', stock: 100 },
-        { name: 'Kozel', category: 'beer', price: 180, description: 'Czech dark lager', stock: 100 },
-        { name: 'Budweiser', category: 'beer', price: 180, description: 'American lager', stock: 100 },
-        { name: 'IPA', category: 'beer', price: 210, description: 'India Pale Ale', stock: 100 },
-        { name: 'Pilsner', category: 'beer', price: 190, description: 'Pilsner style beer', stock: 100 },
-        
-        // VINA
-        { name: 'Vranac', category: 'wine', price: 220, description: 'Red wine, Vranac grape', stock: 100 },
-        { name: 'Merlot', category: 'wine', price: 240, description: 'Red wine, Merlot grape', stock: 100 },
-        { name: 'Cabernet Sauvignon', category: 'wine', price: 250, description: 'Red wine, Cabernet Sauvignon grape', stock: 100 },
-        { name: 'Prokupac', category: 'wine', price: 210, description: 'Serbian red wine', stock: 100 },
-        { name: 'Chardonnay', category: 'wine', price: 230, description: 'White wine, Chardonnay grape', stock: 100 },
-        { name: 'Sauvignon Blanc', category: 'wine', price: 230, description: 'White wine, Sauvignon Blanc grape', stock: 100 },
-        { name: 'Graševina', category: 'wine', price: 210, description: 'White wine, Graševina grape', stock: 100 },
-        { name: 'Rose', category: 'wine', price: 220, description: 'Rosé wine', stock: 100 },
-        { name: 'Prosecco', category: 'wine', price: 260, description: 'Italian sparkling wine', stock: 100 },
-        { name: 'Šampanjac', category: 'wine', price: 500, description: 'Champagne', stock: 100 },
-        { name: 'Desertno vino', category: 'wine', price: 300, description: 'Sweet dessert wine', stock: 100 },
-        
-        // VODE
-        { name: 'Rosa Voda', category: 'water', price: 80, description: 'Natural spring water', stock: 100 },
-        { name: 'Knjaz Miloš', category: 'water', price: 90, description: 'Premium mineral water', stock: 100 },
-        { name: 'Aqua Viva', category: 'water', price: 70, description: 'Pure drinking water', stock: 100 },
-        { name: 'Jana', category: 'water', price: 85, description: 'Natural mineral water', stock: 100 },
-        { name: 'Voda sa Limunom', category: 'water', price: 100, description: 'Water with fresh lemon', stock: 100 },
-        { name: 'Voda sa Limetom', category: 'water', price: 100, description: 'Water with fresh lime', stock: 100 },
-        
-        // KOKTELI
-        { name: 'Mojito', category: 'cocktails', price: 280, description: 'Rum, mint, lime and soda', stock: 100 },
-        { name: 'Margarita', category: 'cocktails', price: 320, description: 'Tequila, lime and triple sec', stock: 100 },
-        { name: 'Martini', category: 'cocktails', price: 350, description: 'Gin and vermouth cocktail', stock: 100 },
-        { name: 'Negroni', category: 'cocktails', price: 380, description: 'Gin, vermouth and campari', stock: 100 },
-        { name: 'Old Fashioned', category: 'cocktails', price: 400, description: 'Whiskey, bitters and sugar', stock: 100 },
-        { name: 'Manhattan', category: 'cocktails', price: 420, description: 'Whiskey and vermouth cocktail', stock: 100 },
-        { name: 'Daiquiri', category: 'cocktails', price: 300, description: 'Rum, lime and sugar', stock: 100 },
-        { name: 'Cosmopolitan', category: 'cocktails', price: 360, description: 'Vodka, cranberry and lime', stock: 100 },
-        { name: 'Pina Colada', category: 'cocktails', price: 320, description: 'Rum, coconut and pineapple', stock: 100 },
-        { name: 'Sex on the Beach', category: 'cocktails', price: 340, description: 'Vodka, peach and cranberry', stock: 100 },
-        { name: 'Long Island Iced Tea', category: 'cocktails', price: 380, description: 'Multiple spirits with cola', stock: 100 },
-        { name: 'Blue Lagoon', category: 'cocktails', price: 300, description: 'Vodka, blue curaçao and lemon', stock: 100 },
-        { name: 'White Russian', category: 'cocktails', price: 360, description: 'Vodka, coffee liqueur and cream', stock: 100 },
-        { name: 'Black Russian', category: 'cocktails', price: 320, description: 'Vodka and coffee liqueur', stock: 100 },
-        { name: 'Gin Tonic', category: 'cocktails', price: 280, description: 'Gin and tonic water', stock: 100 },
-        { name: 'Rum Cola', category: 'cocktails', price: 260, description: 'Rum and cola', stock: 100 },
-        { name: 'Whiskey Sour', category: 'cocktails', price: 320, description: 'Whiskey, lemon and sugar', stock: 100 },
-        
-        // TOPLI NAPITCI
-        { name: 'Čaj', category: 'tea', price: 80, description: 'Hot tea selection', stock: 100 },
-        { name: 'Kamilica', category: 'tea', price: 90, description: 'Chamomile herbal tea', stock: 100 },
-        { name: 'Nana', category: 'tea', price: 90, description: 'Mint herbal tea', stock: 100 },
-        { name: 'Zeleni Čaj', category: 'tea', price: 100, description: 'Green tea', stock: 100 },
-        { name: 'Crni Čaj', category: 'tea', price: 80, description: 'Black tea', stock: 100 },
-        { name: 'Topla Čokolada', category: 'tea', price: 140, description: 'Hot chocolate with milk', stock: 100 }
-      ];
-          for (const item of menuItems) {
-      await connection.execute(
-        'INSERT INTO menu_items (name, category, price, description, stock) VALUES (?, ?, ?, ?, ?)',
-        [item.name, item.category, item.price, item.description, item.stock]
-      );
-    }
+    // ZAKOMENTARISANO - ne ubacujemo testne stavke menija
+    // const menuItems = [
+    //   // KAFE
+    //   { name: 'Espresso', category: 'coffee', price: 120, description: 'Classic Italian espresso', stock: 100 },
+    //   { name: 'Cappuccino', category: 'coffee', price: 150, description: 'Espresso with steamed milk foam', stock: 100 },
+    //   { name: 'Latte', category: 'coffee', price: 160, description: 'Espresso with steamed milk', stock: 100 },
+    //   { name: 'Machiato', category: 'coffee', price: 130, description: 'Espresso with a dash of milk', stock: 100 },
+    //   { name: 'Americano', category: 'coffee', price: 140, description: 'Espresso with hot water', stock: 100 },
+    //   { name: 'Turska Kafa', category: 'coffee', price: 100, description: 'Traditional Turkish coffee', stock: 100 },
+    //   { name: 'Nescafe', category: 'coffee', price: 110, description: 'Instant coffee with hot water', stock: 100 },
+    //   { name: 'Mocha', category: 'coffee', price: 170, description: 'Espresso with chocolate and milk', stock: 100 },
+    //   { name: 'Flat White', category: 'coffee', price: 160, description: 'Espresso with microfoam', stock: 100 },
+    //   { name: 'Ristretto', category: 'coffee', price: 120, description: 'Concentrated espresso shot', stock: 100 },
+    //   
+    //   // SOKOVI
+    //   { name: 'Coca Cola', category: 'soda', price: 120, description: 'Classic carbonated soft drink', stock: 100 },
+    //   { name: 'Fanta', category: 'soda', price: 120, description: 'Orange flavored soda', stock: 100 },
+    //   { name: 'Sprite', category: 'soda', price: 120, description: 'Lemon-lime flavored soda', stock: 100 },
+    //   { name: 'Pepsi', category: 'soda', price: 120, description: 'Pepsi cola soft drink', stock: 100 },
+    //   { name: 'Schweppes', category: 'soda', price: 130, description: 'Premium tonic water', stock: 100 },
+    //   { name: 'Red Bull', category: 'energy', price: 180, description: 'Energy drink with caffeine', stock: 100 },
+    //   { name: 'Monster', category: 'energy', price: 200, description: 'High energy drink', stock: 100 },
+    //   { name: 'Cedevita', category: 'soda', price: 100, description: 'Vitamin drink powder', stock: 100 },
+    //   
+    //   // ŽESTOKA PIĆA
+    //   { name: 'Rakija šljiva', category: 'spirits', price: 250, description: 'Plum brandy (šljivovica)', stock: 100 },
+    //   { name: 'Rakija kajsija', category: 'spirits', price: 270, description: 'Apricot brandy', stock: 100 },
+    //   { name: 'Rakija dunja', category: 'spirits', price: 270, description: 'Quince brandy', stock: 100 },
+    //   { name: 'Rakija loza', category: 'spirits', price: 250, description: 'Grape brandy', stock: 100 },
+    //   { name: 'Vodka', category: 'spirits', price: 300, description: 'Premium vodka shot', stock: 100 },
+    //   { name: 'Whiskey Jameson', category: 'spirits', price: 350, description: 'Jameson Irish whiskey', stock: 100 },
+    //   { name: 'Whiskey Jack Daniel’s', category: 'spirits', price: 370, description: 'Jack Daniel’s Tennessee whiskey', stock: 100 },
+    //   { name: 'Whiskey Ballantine’s', category: 'spirits', price: 360, description: 'Ballantine’s Scotch whisky', stock: 100 },
+    //   { name: 'Rum Havana Club', category: 'spirits', price: 320, description: 'Havana Club white rum', stock: 100 },
+    //   { name: 'Rum Captain Morgan', category: 'spirits', price: 340, description: 'Captain Morgan spiced rum', stock: 100 },
+    //   { name: 'Gin Beefeater', category: 'spirits', price: 340, description: 'Beefeater London dry gin', stock: 100 },
+    //   { name: 'Gin Bombay Sapphire', category: 'spirits', price: 360, description: 'Bombay Sapphire gin', stock: 100 },
+    //   { name: 'Tequila Olmeca', category: 'spirits', price: 360, description: 'Olmeca tequila shot', stock: 100 },
+    //   { name: 'Tequila Sierra', category: 'spirits', price: 370, description: 'Sierra tequila shot', stock: 100 },
+    //   { name: 'Cognac Hennessy', category: 'spirits', price: 400, description: 'Hennessy French cognac', stock: 100 },
+    //   { name: 'Cognac Courvoisier', category: 'spirits', price: 420, description: 'Courvoisier French cognac', stock: 100 },
+    //   { name: 'Absinthe', category: 'spirits', price: 450, description: 'Green fairy spirit', stock: 100 },
+    //   { name: 'Jägermeister', category: 'spirits', price: 320, description: 'Herbal liqueur', stock: 100 },
+    //   { name: 'Baileys', category: 'spirits', price: 320, description: 'Irish cream liqueur', stock: 100 },
+    //   { name: 'Amaretto', category: 'spirits', price: 320, description: 'Almond liqueur', stock: 100 },
+    //   
+    //   // PIVA
+    //   { name: 'Jelen', category: 'beer', price: 150, description: 'Serbian lager beer', stock: 100 },
+    //   { name: 'Lav', category: 'beer', price: 140, description: 'Serbian lager beer', stock: 100 },
+    //   { name: 'Zaječarsko', category: 'beer', price: 150, description: 'Serbian lager beer', stock: 100 },
+    //   { name: 'Heineken', category: 'beer', price: 180, description: 'Dutch premium lager', stock: 100 },
+    //   { name: 'Corona', category: 'beer', price: 200, description: 'Mexican lager with lime', stock: 100 },
+    //   { name: 'Stella Artois', category: 'beer', price: 190, description: 'Belgian premium lager', stock: 100 },
+    //   { name: 'Tuborg', category: 'beer', price: 160, description: 'Danish lager beer', stock: 100 },
+    //   { name: 'Guinness', category: 'beer', price: 220, description: 'Irish dry stout', stock: 100 },
+    //   { name: 'Paulaner', category: 'beer', price: 230, description: 'German wheat beer', stock: 100 },
+    //   { name: 'Kozel', category: 'beer', price: 180, description: 'Czech dark lager', stock: 100 },
+    //   { name: 'Budweiser', category: 'beer', price: 180, description: 'American lager', stock: 100 },
+    //   { name: 'IPA', category: 'beer', price: 210, description: 'India Pale Ale', stock: 100 },
+    //   { name: 'Pilsner', category: 'beer', price: 190, description: 'Pilsner style beer', stock: 100 },
+    //   
+    //   // VINA
+    //   { name: 'Vranac', category: 'wine', price: 220, description: 'Red wine, Vranac grape', stock: 100 },
+    //   { name: 'Merlot', category: 'wine', price: 240, description: 'Red wine, Merlot grape', stock: 100 },
+    //   { name: 'Cabernet Sauvignon', category: 'wine', price: 250, description: 'Red wine, Cabernet Sauvignon grape', stock: 100 },
+    //   { name: 'Prokupac', category: 'wine', price: 210, description: 'Serbian red wine', stock: 100 },
+    //   { name: 'Chardonnay', category: 'wine', price: 230, description: 'White wine, Chardonnay grape', stock: 100 },
+    //   { name: 'Sauvignon Blanc', category: 'wine', price: 230, description: 'White wine, Sauvignon Blanc grape', stock: 100 },
+    //   { name: 'Graševina', category: 'wine', price: 210, description: 'White wine, Graševina grape', stock: 100 },
+    //   { name: 'Rose', category: 'wine', price: 220, description: 'Rosé wine', stock: 100 },
+    //   { name: 'Prosecco', category: 'wine', price: 260, description: 'Italian sparkling wine', stock: 100 },
+    //   { name: 'Šampanjac', category: 'wine', price: 500, description: 'Champagne', stock: 100 },
+    //   { name: 'Desertno vino', category: 'wine', price: 300, description: 'Sweet dessert wine', stock: 100 },
+    //   
+    //   // VODE
+    //   { name: 'Rosa Voda', category: 'water', price: 80, description: 'Natural spring water', stock: 100 },
+    //   { name: 'Knjaz Miloš', category: 'water', price: 90, description: 'Premium mineral water', stock: 100 },
+    //   { name: 'Aqua Viva', category: 'water', price: 70, description: 'Pure drinking water', stock: 100 },
+    //   { name: 'Jana', category: 'water', price: 85, description: 'Natural mineral water', stock: 100 },
+    //   { name: 'Voda sa Limunom', category: 'water', price: 100, description: 'Water with fresh lemon', stock: 100 },
+    //   { name: 'Voda sa Limetom', category: 'water', price: 100, description: 'Water with fresh lime', stock: 100 },
+    //   
+    //   // KOKTELI
+    //   { name: 'Mojito', category: 'cocktails', price: 280, description: 'Rum, mint, lime and soda', stock: 100 },
+    //   { name: 'Margarita', category: 'cocktails', price: 320, description: 'Tequila, lime and triple sec', stock: 100 },
+    //   { name: 'Martini', category: 'cocktails', price: 350, description: 'Gin and vermouth cocktail', stock: 100 },
+    //   { name: 'Negroni', category: 'cocktails', price: 380, description: 'Gin, vermouth and campari', stock: 100 },
+    //   { name: 'Old Fashioned', category: 'cocktails', price: 400, description: 'Whiskey, bitters and sugar', stock: 100 },
+    //   { name: 'Manhattan', category: 'cocktails', price: 420, description: 'Whiskey and vermouth cocktail', stock: 100 },
+    //   { name: 'Daiquiri', category: 'cocktails', price: 300, description: 'Rum, lime and sugar', stock: 100 },
+    //   { name: 'Cosmopolitan', category: 'cocktails', price: 360, description: 'Vodka, cranberry and lime', stock: 100 },
+    //   { name: 'Pina Colada', category: 'cocktails', price: 320, description: 'Rum, coconut and pineapple', stock: 100 },
+    //   { name: 'Sex on the Beach', category: 'cocktails', price: 340, description: 'Vodka, peach and cranberry', stock: 100 },
+    //   { name: 'Long Island Iced Tea', category: 'cocktails', price: 380, description: 'Multiple spirits with cola', stock: 100 },
+    //   { name: 'Blue Lagoon', category: 'cocktails', price: 300, description: 'Vodka, blue curaçao and lemon', stock: 100 },
+    //   { name: 'White Russian', category: 'cocktails', price: 360, description: 'Vodka, coffee liqueur and cream', stock: 100 },
+    //   { name: 'Black Russian', category: 'cocktails', price: 320, description: 'Vodka and coffee liqueur', stock: 100 },
+    //   { name: 'Gin Tonic', category: 'cocktails', price: 280, description: 'Gin and tonic water', stock: 100 },
+    //   { name: 'Rum Cola', category: 'cocktails', price: 260, description: 'Rum and cola', stock: 100 },
+    //   { name: 'Whiskey Sour', category: 'cocktails', price: 320, description: 'Whiskey, lemon and sugar', stock: 100 },
+    //   
+    //   // TOPLI NAPITCI
+    //   { name: 'Čaj', category: 'tea', price: 80, description: 'Hot tea selection', stock: 100 },
+    //   { name: 'Kamilica', category: 'tea', price: 90, description: 'Chamomile herbal tea', stock: 100 },
+    //   { name: 'Nana', category: 'tea', price: 90, description: 'Mint herbal tea', stock: 100 },
+    //   { name: 'Zeleni Čaj', category: 'tea', price: 100, description: 'Green tea', stock: 100 },
+    //   { name: 'Crni Čaj', category: 'tea', price: 80, description: 'Black tea', stock: 100 },
+    //   { name: 'Topla Čokolada', category: 'tea', price: 140, description: 'Hot chocolate with milk', stock: 100 }
+    // ];
+    // for (const item of menuItems) {
+    //   await connection.execute(
+    //     'INSERT INTO menu_items (name, category, price, description, stock) VALUES (?, ?, ?, ?, ?)',
+    //     [item.name, item.category, item.price, item.description, item.stock]
+    //   );
+    // }
 
     // Insert default tables SAMO AKO NEMA NIJEDNOG
     const [tableCountRows] = await connection.execute('SELECT COUNT(*) as count FROM tables');
@@ -741,20 +743,31 @@ const dbHelpers = {
     `, [waiterId, today]);
     console.log('Product stats for waiter:', productStats);
 
-    // Overall statistics for today - include all orders approved by this waiter
-    const [overallStats] = await pool.execute(`
+    // Overall statistics for today - FIXED LOGIC
+    // 1. Get orders count and revenue from orders table (no LEFT JOIN to avoid duplicates)
+    const [orderStats] = await pool.execute(`
       SELECT 
         COUNT(*) as totalOrders,
         COALESCE(SUM(total_price), 0) as totalRevenue,
-        COALESCE(AVG(total_price), 0) as averageOrderValue,
-        COALESCE(SUM(oi.quantity), 0) as totalItems
+        COALESCE(AVG(total_price), 0) as averageOrderValue
       FROM orders o
-      LEFT JOIN order_items oi ON o.id = oi.order_id
       WHERE o.waiter_id = ? 
         AND o.status IN ('approved', 'completed')
         AND DATE(o.created_at) = ?
     `, [waiterId, today]);
-    console.log('Overall stats for waiter:', overallStats[0]);
+    console.log('Order stats for waiter:', orderStats[0]);
+
+    // 2. Get total items count from order_items table
+    const [itemStats] = await pool.execute(`
+      SELECT 
+        COALESCE(SUM(oi.quantity), 0) as totalItems
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.waiter_id = ? 
+        AND o.status IN ('approved', 'completed')
+        AND DATE(o.created_at) = ?
+    `, [waiterId, today]);
+    console.log('Item stats for waiter:', itemStats[0]);
 
     // Debug: Check all orders for this waiter today
     const [debugOrders] = await pool.execute(`
@@ -766,10 +779,10 @@ const dbHelpers = {
 
     return {
       productStats,
-      totalOrders: overallStats[0]?.totalOrders || 0,
-      totalRevenue: overallStats[0]?.totalRevenue || 0,
-      averageOrderValue: overallStats[0]?.averageOrderValue || 0,
-      totalItems: overallStats[0]?.totalItems || 0
+      totalOrders: orderStats[0]?.totalOrders || 0,
+      totalRevenue: orderStats[0]?.totalRevenue || 0,
+      averageOrderValue: orderStats[0]?.averageOrderValue || 0,
+      totalItems: itemStats[0]?.totalItems || 0
     };
   },
 
@@ -898,7 +911,7 @@ const dbHelpers = {
       // Get today's date
       const today = new Date().toISOString().split('T')[0];
       
-      // Get product statistics for today - include all orders processed by this waiter (pending, approved, completed)
+      // Get product statistics for today - include all orders processed by this waiter (approved, completed)
       const [productStats] = await pool.execute(`
         SELECT 
           oi.name,
@@ -908,23 +921,33 @@ const dbHelpers = {
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
         WHERE o.waiter_id = ? 
-          AND o.status IN ('pending', 'approved', 'completed')
+          AND o.status IN ('approved', 'completed')
           AND DATE(o.created_at) = ?
         GROUP BY oi.name
         ORDER BY quantitySold DESC
       `, [waiterId, today]);
 
-      // Get overall statistics for today
-      const [overallStats] = await pool.execute(`
+      // Get overall statistics for today - FIXED LOGIC
+      // 1. Get orders count and revenue from orders table (no LEFT JOIN to avoid duplicates)
+      const [orderStats] = await pool.execute(`
         SELECT 
           COUNT(*) as totalOrders,
           COALESCE(SUM(total_price), 0) as totalRevenue,
-          COALESCE(AVG(total_price), 0) as averageOrderValue,
-          COALESCE(SUM(oi.quantity), 0) as totalItems
+          COALESCE(AVG(total_price), 0) as averageOrderValue
         FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
         WHERE o.waiter_id = ? 
-          AND o.status IN ('pending', 'approved', 'completed')
+          AND o.status IN ('approved', 'completed')
+          AND DATE(o.created_at) = ?
+      `, [waiterId, today]);
+
+      // 2. Get total items count from order_items table
+      const [itemStats] = await pool.execute(`
+        SELECT 
+          COALESCE(SUM(oi.quantity), 0) as totalItems
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        WHERE o.waiter_id = ? 
+          AND o.status IN ('approved', 'completed')
           AND DATE(o.created_at) = ?
       `, [waiterId, today]);
 
@@ -932,10 +955,10 @@ const dbHelpers = {
       const stats = await dbHelpers.getOrCreateTodayStats(waiterId);
       
       const result = {
-        total_orders: overallStats[0]?.totalOrders || 0,
-        total_revenue: parseFloat(overallStats[0]?.totalRevenue || 0),
-        average_order_value: parseFloat(overallStats[0]?.averageOrderValue || 0),
-        total_items: overallStats[0]?.totalItems || 0,
+        total_orders: orderStats[0]?.totalOrders || 0,
+        total_revenue: parseFloat(orderStats[0]?.totalRevenue || 0),
+        average_order_value: parseFloat(orderStats[0]?.averageOrderValue || 0),
+        total_items: itemStats[0]?.totalItems || 0,
         product_stats: productStats,
         shift_start: stats.shift_start,
         date: stats.date
