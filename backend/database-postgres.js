@@ -152,6 +152,16 @@ const dbHelpers = {
             client.release();
         }
     },
+
+    getMenuItems: async () => {
+        try {
+            const [rows] = await pool.execute('SELECT * FROM menu_items WHERE available = 1 ORDER BY category, name');
+            return rows;
+        } catch (error) {
+            console.error('Error getting menu items:', error);
+            throw error;
+        }
+    },
     // Etc.
 };
 
