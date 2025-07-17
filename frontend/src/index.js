@@ -9,7 +9,9 @@ import axios from 'axios';
 // Set axios base URL - use environment variable or fallback to localhost
 const API_URL = process.env.API_URL || 'http://localhost:3003';
 axios.defaults.baseURL = API_URL;
-axios.defaults.withCredentials = true; // Enable cookies for all requests
+axios.defaults.withCredentials = true;
+axios.defaults.headers.common['Accept'] = 'application/json';
+axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // Add axios interceptor to automatically add authorization headers
 axios.interceptors.request.use(
