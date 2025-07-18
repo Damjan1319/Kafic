@@ -270,7 +270,7 @@ const dbHelpers = {
     getMenuItems: async () => {
         console.log('usao')
         try {
-            const {rows} = await pool.query('SELECT * FROM menu_items WHERE available = 1 ORDER BY category, name');
+            const {rows} = await pool.query('SELECT * FROM menu_items WHERE available = true ORDER BY category, name');
             console.log(rows)
             return rows;
         } catch (error) {
