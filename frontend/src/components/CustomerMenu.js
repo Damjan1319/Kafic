@@ -18,6 +18,7 @@ const CustomerMenu = () => {
     const {socket} = useContext(SocketContext);
 
     useEffect(() => {
+        console.log('axios.defaults.baseURL:', axios.defaults.baseURL);
         axios.get('/api/menu')
             .then(response => {
                 console.log('Menu data:', response.data);

@@ -13,6 +13,8 @@ axios.defaults.withCredentials = true;
 axios.defaults.headers.common['Accept'] = 'application/json';
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
+console.log(API_URL)
+
 // Add axios interceptor to automatically add authorization headers
 axios.interceptors.request.use(
     (config) => {
