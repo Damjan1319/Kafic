@@ -224,6 +224,7 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/menu', async (req, res) => {
     try {
         const menuItems = await dbHelpers.getMenuItems();
+        console.log(menuItems)
         res.json(menuItems);
     } catch (error) {
         console.error('Error fetching menu:', error);
