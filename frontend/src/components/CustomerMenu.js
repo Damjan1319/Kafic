@@ -5,6 +5,7 @@ import Notification from './Notification';
 import {validateOrder} from '../utils/validation';
 import logger from '../utils/logger';
 import axios from 'axios';
+import {API_URL} from "../index";
 
 const CustomerMenu = () => {
     const {tableId} = useParams();
@@ -19,6 +20,8 @@ const CustomerMenu = () => {
 
     useEffect(() => {
         console.log('axios.defaults.baseURL:', axios.defaults.baseURL);
+        console.log('axios.defaults.baseURL:', API_URL);
+        console.log(process.env.REACT_APP_API_URL)
         axios.get('/api/menu')
             .then(response => {
                 console.log('Menu data:', response.data);

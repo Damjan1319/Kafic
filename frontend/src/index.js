@@ -7,13 +7,11 @@ import {SocketProvider} from './context/SocketContext';
 import axios from 'axios';
 
 // Set axios base URL - use environment variable or fallback to localhost
-const API_URL = process.env.API_URL || 'http://localhost:3003';
+export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3003';
 axios.defaults.baseURL = API_URL;
 axios.defaults.withCredentials = true;
 axios.defaults.headers.common['Accept'] = 'application/json';
 axios.defaults.headers.common['Content-Type'] = 'application/json';
-
-console.log(API_URL)
 
 // Add axios interceptor to automatically add authorization headers
 axios.interceptors.request.use(
