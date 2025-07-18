@@ -4,6 +4,7 @@ import {SocketContext} from '../context/SocketContext';
 import Notification from './Notification';
 import {validateOrder} from '../utils/validation';
 import logger from '../utils/logger';
+import axios from 'axios';
 
 const CustomerMenu = () => {
     const {tableId} = useParams();
