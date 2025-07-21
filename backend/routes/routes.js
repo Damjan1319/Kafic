@@ -1,11 +1,11 @@
 const express = require('express');
-const { io } = require('../server'); // Import io for socket emits
+const {io} = require('../server'); // Import io for socket emits
 const MenuItem = require('../models/MenuItem');
 const Table = require('../models/Table');
 const Order = require('../models/Order');
 const Waiter = require('../models/Waiter');
-const Stats = require('../models/Stats');
 const Auth = require('../models/Auth');
+const Stats = require("../models/Statistics");
 const router = express.Router();
 
 // #region Menu Routes
@@ -15,7 +15,7 @@ router.get('/menu', async (req, res) => {
         const menuItems = await MenuItem.getMenuItems();
         res.json(menuItems);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -25,7 +25,7 @@ router.get('/menu-items', Auth.authenticate(), async (req, res) => {
         const menuItems = await MenuItem.getMenuItems();
         res.json(menuItems);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -35,7 +35,7 @@ router.post('/menu-items', Auth.authenticate(), async (req, res) => {
         const newItem = await MenuItem.addMenuItem(req.body);
         res.json(newItem);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 // #endregion
@@ -47,19 +47,19 @@ router.get('/inventory', Auth.authenticate(), async (req, res) => {
         const inventory = await MenuItem.getInventory();
         res.json(inventory);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
 // Update inventory stock (admin)
 router.put('/inventory/:id', Auth.authenticate(), async (req, res) => {
     try {
-        const { stock } = req.body;
+        const {stock} = req.body;
         const itemId = parseInt(req.params.id);
         await MenuItem.updateInventoryStock(itemId, stock);
-        res.json({ success: true });
+        res.json({success: true});
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 // #endregion
@@ -70,11 +70,11 @@ router.get('/table/:qrCode', async (req, res) => {
     try {
         const table = await Table.getTableByQRCode(req.params.qrCode);
         if (!table) {
-            return res.status(404).json({ error: 'Table not found' });
+            return res.status(404).json({error: 'Table not found'});
         }
         res.json(table);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -84,7 +84,7 @@ router.get('/tables-with-orders', Auth.authenticate(), async (req, res) => {
         const tables = await Table.getTablesWithOrders();
         res.json(tables);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -94,18 +94,18 @@ router.get('/tables-positions-view', Auth.authenticate(), async (req, res) => {
         const tables = await Table.getTablesPositionsView();
         res.json(tables);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
 // Create table
 router.post('/tables', Auth.authenticate(), async (req, res) => {
-    const { table_number, x_position, y_position, location } = req.body;
+    const {table_number, x_position, y_position, location} = req.body;
 
     try {
         const tableExists = await Table.getTableByNumber(table_number);
         if (tableExists) {
-            return res.status(400).json({ message: 'Sto sa ovim brojem već postoji' });
+            return res.status(400).json({message: 'Sto sa ovim brojem već postoji'});
         }
 
         const tableId = await Table.createTable(table_number, x_position, y_position, location);
@@ -115,13 +115,13 @@ router.post('/tables', Auth.authenticate(), async (req, res) => {
             tableId,
         });
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
 // Update table position
 router.put('/tables/:id/position', Auth.authenticate(), async (req, res) => {
-    const { x, y } = req.body;
+    const {x, y} = req.body;
     const tableId = parseInt(req.params.id);
 
     try {
@@ -135,15 +135,15 @@ router.put('/tables/:id/position', Auth.authenticate(), async (req, res) => {
             updatedBy: req.user.id,
         });
 
-        res.json({ message: 'Pozicija stola ažurirana' });
+        res.json({message: 'Pozicija stola ažurirana'});
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
 // Update all table positions at once
 router.put('/tables/positions', Auth.authenticate(), async (req, res) => {
-    const { positions } = req.body; // array of {id, x, y}
+    const {positions} = req.body; // array of {id, x, y}
 
     try {
         const updatePromises = positions.map(pos =>
@@ -158,9 +158,9 @@ router.put('/tables/positions', Auth.authenticate(), async (req, res) => {
             updatedBy: req.user.id,
         });
 
-        res.json({ message: 'Raspored stolova ažuriran' });
+        res.json({message: 'Raspored stolova ažuriran'});
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 // #endregion
@@ -168,7 +168,7 @@ router.put('/tables/positions', Auth.authenticate(), async (req, res) => {
 // #region Order Routes
 // Create order (public endpoint for customers)
 router.post('/orders', async (req, res) => {
-    const { table_id, items, total_price } = req.body;
+    const {table_id, items, total_price} = req.body;
 
     // Assume validateOrderData is implemented elsewhere or omitted
 
@@ -180,7 +180,7 @@ router.post('/orders', async (req, res) => {
 
         res.json(newOrder);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -191,7 +191,7 @@ router.get('/orders', Auth.authenticate(), async (req, res) => {
         const orders = await Order.getOrders(waiterId);
         res.json(orders);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -201,18 +201,18 @@ router.get('/all-orders', async (req, res) => {
         const orders = await Order.getOrders();
         res.json(orders);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
 // Update order status
 router.put('/orders/:id', Auth.authenticate(), async (req, res) => {
-    const { status } = req.body;
+    const {status} = req.body;
 
     try {
         const currentOrder = await Order.getOrderById(parseInt(req.params.id));
         if (!currentOrder) {
-            return res.status(404).json({ error: 'Order not found' });
+            return res.status(404).json({error: 'Order not found'});
         }
 
         const wasAlreadyApproved = currentOrder.status === 'approved';
@@ -225,7 +225,7 @@ router.put('/orders/:id', Auth.authenticate(), async (req, res) => {
         );
 
         if (!order) {
-            return res.status(404).json({ error: 'Order not found' });
+            return res.status(404).json({error: 'Order not found'});
         }
 
         // Update waiter statistics if order is approved or completed (and wasn't already approved)
@@ -260,7 +260,7 @@ router.put('/orders/:id', Auth.authenticate(), async (req, res) => {
         io.emit('order_updated', order);
         res.json(order);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -269,10 +269,10 @@ router.delete('/orders/:id', Auth.authenticate(), async (req, res) => {
     try {
         const result = await Order.deleteOrder(parseInt(req.params.id));
 
-        io.emit('order_deleted', { id: parseInt(req.params.id) });
+        io.emit('order_deleted', {id: parseInt(req.params.id)});
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 // #endregion
@@ -284,7 +284,7 @@ router.get('/waiters', Auth.authenticate(), async (req, res) => {
         const waiters = await Waiter.getWaiters();
         res.json(waiters);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 // #endregion
@@ -296,7 +296,7 @@ router.get('/statistics', Auth.authenticate(), async (req, res) => {
         const statistics = await Stats.getStatistics();
         res.json(statistics);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -306,7 +306,7 @@ router.get('/waiter-shift-stats', Auth.authenticate(), async (req, res) => {
         const stats = await Stats.getWaiterShiftStats(req.user.id);
         res.json(stats);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -316,7 +316,7 @@ router.get('/shift-stats', Auth.authenticate(), async (req, res) => {
         const stats = await Stats.getShiftStats(req.user.id);
         res.json(stats);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -326,7 +326,7 @@ router.get('/waiter-today-stats', Auth.authenticate(), async (req, res) => {
         const stats = await Stats.getWaiterTodayStats(req.user.id);
         res.json(stats);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -336,7 +336,7 @@ router.post('/waiter-reset-stats', Auth.authenticate(), async (req, res) => {
         const result = await Stats.resetWaiterStats(req.user.id);
         res.json(result);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 
@@ -347,7 +347,7 @@ router.get('/waiter-historical-stats', Auth.authenticate(), async (req, res) => 
         const stats = await Stats.getWaiterHistoricalStats(req.user.id, days);
         res.json(stats);
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 // #endregion
@@ -356,7 +356,7 @@ router.get('/waiter-historical-stats', Auth.authenticate(), async (req, res) => 
 // Log frontend errors
 router.post('/logs', async (req, res) => {
     try {
-        const { type, message, stack, componentStack, url, userAgent, timestamp } = req.body;
+        const {type, message, stack, componentStack, url, userAgent, timestamp} = req.body;
 
         // Assume logger is console for now
         console.error('Frontend error', {
@@ -369,9 +369,9 @@ router.post('/logs', async (req, res) => {
             timestamp,
         });
 
-        res.json({ success: true });
+        res.json({success: true});
     } catch (error) {
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({error: 'Server error'});
     }
 });
 // #endregion

@@ -4,9 +4,9 @@ const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
 const cookieParser = require('cookie-parser');
-const {PrismaClient} = require('@prisma/client');
-const {initializeSocket} = require('./sockets/socket');
+const {PrismaClient} = require('./generated/prisma');
 const routes = require('./routes/routes');
+const {initializeSocket} = require("./sockets/sockets");
 
 const prisma = new PrismaClient();
 const app = express();

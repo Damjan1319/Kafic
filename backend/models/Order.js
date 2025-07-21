@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const {PrismaClient} = require('../generated/prisma');
 
 const prisma = new PrismaClient();
 
@@ -9,8 +9,8 @@ class Order {
         if (waiterId) {
             whereClause = {
                 OR: [
-                    { waiter_id: parseInt(waiterId) },
-                    { status: 'pending' },
+                    {waiter_id: parseInt(waiterId)},
+                    {status: 'pending'},
                 ],
             };
         }
@@ -19,14 +19,14 @@ class Order {
             where: whereClause,
             include: {
                 tables: {
-                    select: { table_number: true },
+                    select: {table_number: true},
                 },
                 waiters: {
-                    select: { name: true },
+                    select: {name: true},
                 },
                 order_items: true,
             },
-            orderBy: { created_at: 'desc' },
+            orderBy: {created_at: 'desc'},
         });
 
         // Map to match original structure (e.g., waiter_name instead of waiters.name)
@@ -44,13 +44,13 @@ class Order {
     // Get order by ID
     static async getOrderById(id) {
         const order = await prisma.orders.findUnique({
-            where: { id: parseInt(id) },
+            where: {id: parseInt(id)},
             include: {
                 tables: {
-                    select: { table_number: true },
+                    select: {table_number: true},
                 },
                 waiters: {
-                    select: { name: true },
+                    select: {name: true},
                 },
                 order_items: true,
             },
@@ -77,8 +77,8 @@ class Order {
         return await prisma.$transaction(async (tx) => {
             // Get current order count for table
             const table = await tx.tables.findUnique({
-                where: { id: parseInt(tableId) },
-                select: { current_order_count: true },
+                where: {id: parseInt(tableId)},
+                select: {current_order_count: true},
             });
 
             const orderNumber = (table.current_order_count || 0) + 1;
@@ -108,8 +108,8 @@ class Order {
 
             // Update table order count
             await tx.tables.update({
-                where: { id: parseInt(tableId) },
-                data: { current_order_count: orderNumber },
+                where: {id: parseInt(tableId)},
+                data: {current_order_count: orderNumber},
             });
 
             // Return the created order (fetched outside transaction for consistency)
@@ -119,13 +119,13 @@ class Order {
 
     // Update order status
     static async updateOrderStatus(orderId, status, waiterId = null) {
-        const updateData = { status };
+        const updateData = {status};
         if (waiterId) {
             updateData.waiter_id = parseInt(waiterId);
         }
 
         await prisma.orders.update({
-            where: { id: parseInt(orderId) },
+            where: {id: parseInt(orderId)},
             data: updateData,
         });
 
@@ -137,16 +137,16 @@ class Order {
         await prisma.$transaction(async (tx) => {
             // Delete dependent order_items first (since no cascade in schema)
             await tx.order_items.deleteMany({
-                where: { order_id: parseInt(orderId) },
+                where: {order_id: parseInt(orderId)},
             });
 
             // Then delete the order
             await tx.orders.delete({
-                where: { id: parseInt(orderId) },
+                where: {id: parseInt(orderId)},
             });
         });
 
-        return { message: 'Order deleted successfully' };
+        return {message: 'Order deleted successfully'};
     }
 }
 
