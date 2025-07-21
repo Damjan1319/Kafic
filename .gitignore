@@ -90,3 +90,4 @@ ehthumbs.db
 Thumbs.db
 
 ./backend/logs
+/generated/prisma
