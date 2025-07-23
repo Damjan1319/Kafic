@@ -24,34 +24,39 @@ class Table {
 
     // Get tables with order details
     static async getTablesWithOrders() {
-        const tables = await prisma.tables.findMany({
-            orderBy: [
-                {location: 'asc'},
-                {table_number: 'asc'},
-            ],
-            include: {
-                orders: {
-                    where: {
-                        status: {in: ['pending', 'approved']},
-                    },
-                    include: {
-                        waiter: {
-                            select: {name: true},
+        try {
+            const tables = await prisma.tables.findMany({
+                orderBy: [
+                    {location: 'asc'},
+                    {table_number: 'asc'},
+                ],
+                include: {
+                    orders: {
+                        where: {
+                            status: {in: ['pending', 'approved']},
                         },
-                        items: true,
+                        include: {
+                            waiters: {
+                                select: {name: true},
+                            },
+                            order_items: true,
+                        },
+                        orderBy: {created_at: 'desc'},
                     },
-                    orderBy: {created_at: 'desc'},
                 },
-            },
-        });
+            });
 
-        for (let table of tables) {
-            table.pendingOrders = table.orders.filter(o => o.status === 'pending');
-            table.approvedOrders = table.orders.filter(o => o.status === 'approved');
-            table.totalOrders = table.orders.length;
+            for (let table of tables) {
+                table.pendingOrders = table?.orders.filter(o => o.status === 'pending');
+                table.approvedOrders = table?.orders.filter(o => o.status === 'approved');
+                table.totalOrders = table?.orders.length;
+            }
+
+            return tables;
+        } catch (error) {
+            console.error(error)
+            return [];
         }
-
-        return tables;
     }
 
     // Get tables positions view (for interactive map)

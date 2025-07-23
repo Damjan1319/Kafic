@@ -39,7 +39,6 @@ export const AuthProvider = ({children}) => {
                 });
 
                 if (response.data.user) {
-                    console.log('User is authenticated, setting user from backend response');
                     setUser(response.data.user);
                     setIsAuthenticated(true);
                 } else {
