@@ -69,7 +69,6 @@ class Auth {
                 sameSite: 'Lax',
                 maxAge: 24 * 60 * 60 * 1000, // 24 hours
                 path: '/',
-                domain: process.env.FRONTEND_URL ?? undefined
             });
 
             res.json({

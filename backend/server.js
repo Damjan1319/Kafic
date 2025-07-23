@@ -22,6 +22,7 @@ const io = socketIo(server, {
 app.use(cors({origin: process.env.FRONTEND_URL || 'http://localhost:3000', credentials: true}));
 app.use(express.json());
 app.use(cookieParser());
+app.set('trust proxy', true);
 
 /* ---------- REST routes ---------- */
 app.use('/api', routes(io));
