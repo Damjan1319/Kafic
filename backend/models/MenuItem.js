@@ -1,4 +1,4 @@
-const { PrismaClient } = require('../generated/prisma');
+const {PrismaClient} = require('../generated/prisma');
 const prisma = new PrismaClient();
 
 class MenuItem {
@@ -13,7 +13,7 @@ class MenuItem {
     // Get all menu items
     static async getMenuItems() {
         return prisma.menu_items.findMany({
-            where: {available: true}, orderBy: [{category: 'asc'}, {name: 'asc'},],
+            where: {available: true}, orderBy: [{category: 'asc'}, {name: 'asc'}],
         });
     }
 
