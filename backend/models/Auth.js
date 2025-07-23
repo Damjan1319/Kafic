@@ -32,12 +32,8 @@ class Auth {
     // Validate token handler
     static validate(req, res) {
         res.json({
-            valid: true,
-            user: {
-                id: req.user.id,
-                username: req.user.username,
-                name: req.user.name,
-                role: req.user.role,
+            valid: true, user: {
+                id: req.user.id, username: req.user.username, name: req.user.name, role: req.user.role,
             },
         });
     }
@@ -46,10 +42,7 @@ class Auth {
     static me(req, res) {
         res.json({
             user: {
-                id: req.user.id,
-                username: req.user.username,
-                name: req.user.name,
-                role: req.user.role,
+                id: req.user.id, username: req.user.username, name: req.user.name, role: req.user.role,
             },
         });
     }
@@ -64,26 +57,23 @@ class Auth {
                 return res.status(401).json({error: 'Invalid credentials'});
             }
 
-            const token = jwt.sign(
-                {id: waiter.id, username: waiter.username, role: waiter.role},
-                JWT_SECRET,
-                {expiresIn: '24h'}
-            );
+            const token = jwt.sign({
+                id: waiter.id,
+                username: waiter.username,
+                role: waiter.role
+            }, JWT_SECRET, {expiresIn: '24h'});
 
             res.cookie('token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
+                sameSite: 'Lax',
                 maxAge: 24 * 60 * 60 * 1000, // 24 hours
                 path: '/',
             });
 
             res.json({
                 user: {
-                    id: waiter.id,
-                    username: waiter.username,
-                    name: waiter.name,
-                    role: waiter.role,
+                    id: waiter.id, username: waiter.username, name: waiter.name, role: waiter.role,
                 },
             });
         } catch (error) {
@@ -95,10 +85,7 @@ class Auth {
     // Logout handler
     static logout(req, res) {
         res.clearCookie('token', {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            path: '/',
+            httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/',
         });
         res.json({message: 'Logged out successfully'});
     }

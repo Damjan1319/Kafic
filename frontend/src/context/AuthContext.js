@@ -34,9 +34,7 @@ export const AuthProvider = ({children}) => {
         const checkAuth = async () => {
             try {
                 // Check if user is logged in using /api/me endpoint
-                const response = await axios.get('/api/me', {
-                    withCredentials: true // omogućava slanje HttpOnly cookie-ja
-                });
+                const response = await axios.get('/api/me');
 
                 if (response.data.user) {
                     setUser(response.data.user);
