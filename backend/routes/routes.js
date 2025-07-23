@@ -99,6 +99,16 @@ const routes = (io) => {
         }
     });
 
+    router.get('/tables-positions', Auth.authenticate(), async (req, res) => {
+        try {
+            const tables = await Table.getTablesWithPositions();
+            res.json(tables);
+        } catch (error) {
+            console.error('Error fetching tables:', error);
+            res.status(500).json({error: 'Server error'});
+        }
+    });
+
 // Create table
     router.post('/tables', Auth.authenticate(), async (req, res) => {
         const {table_number, x_position, y_position, location} = req.body;

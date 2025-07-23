@@ -74,6 +74,15 @@ class Table {
         });
     }
 
+    static async getTablesWithPositions() {
+        return prisma.tables.findMany({
+            orderBy: [
+                {location: 'asc'},
+                {table_number: 'asc'}
+            ]
+        });
+    }
+
     // Update table position
     static async updateTablePosition(id, x, y) {
         return prisma.tables.update({

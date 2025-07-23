@@ -20,15 +20,20 @@ class MenuItem {
     // Add new menu item
     static async addMenuItem(itemData) {
         const stock = itemData.initialStock || 0;
-        return prisma.menu_items.create({
-            data: {
-                name: itemData.name,
-                category: itemData.category,
-                price: itemData.price,
-                description: itemData.description,
-                stock,
-            },
-        });
+        try {
+            return prisma.menu_items.create({
+                data: {
+                    name: itemData.name,
+                    category: itemData.category,
+                    price: itemData.price,
+                    description: itemData.description,
+                    stock,
+                },
+            });
+        } catch (error) {
+            console.log(error);
+            return {success: false};
+        }
     }
 
     // Get inventory (menu items with stock)
