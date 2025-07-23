@@ -1,5 +1,6 @@
 import React, {createContext, useContext, useEffect, useState} from 'react';
 import io from 'socket.io-client';
+import {API_URL} from "../index";
 
 const SocketContext = createContext();
 
@@ -16,7 +17,7 @@ export const SocketProvider = ({children}) => {
 
     useEffect(() => {
         // Connect to socket using proxy
-        const socket = io('http://localhost:3003', {
+        const socket = io(API_URL, {
             withCredentials: false,
         });
 
