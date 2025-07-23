@@ -34,7 +34,9 @@ export const AuthProvider = ({children}) => {
         const checkAuth = async () => {
             try {
                 // Check if user is logged in using /api/me endpoint
-                const response = await axios.get('/api/me');
+                const response = await axios.get('/api/me', {
+                    withCredentials: true
+                });
 
                 if (response.data.user) {
                     setUser(response.data.user);
