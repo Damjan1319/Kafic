@@ -72,48 +72,81 @@ class Order {
         };
     }
 
-    // Create new order
+    /**
+     * Creates a new order for a given table with the specified items and total price.
+     * @param {string|number} tableId - The ID of the table.
+     * @param {Array<{id: number, name: string, price: number, quantity: number}>} items - The items to include in the order.
+     * @param {number} totalPrice - The total price of the order.
+     * @returns {Promise<object>} The created order with transformed structure.
+     * @throws {Error} If the table is not found or if the transaction fails.
+     */
     static async createOrder(tableId, items, totalPrice) {
-        return await prisma.$transaction(async (tx) => {
+        return prisma.$transaction(async (tx) => {
+            // Validate tableId
+            const parsedTableId = parseInt(tableId);
+            if (isNaN(parsedTableId) || parsedTableId <= 0) {
+                throw new Error(`Invalid table ID: ${tableId}`);
+            }
+
             // Get current order count for table
             const table = await tx.tables.findUnique({
-                where: {id: parseInt(tableId)},
-                select: {current_order_count: true},
+                where: {id: parsedTableId},
+                select: {current_order_count: true, table_number: true},
             });
+
+            if (!table) {
+                throw new Error(`Table with ID ${tableId} not found`);
+            }
 
             const orderNumber = (table.current_order_count || 0) + 1;
 
             // Create order
             const order = await tx.orders.create({
                 data: {
-                    table_id: parseInt(tableId),
+                    table_id: parsedTableId,
                     order_number: orderNumber,
-                    total_price: totalPrice,
+                    total_price: Number(totalPrice),
                     status: 'pending',
                 },
             });
 
             // Insert order items
+            const createdItems = [];
             for (const item of items) {
-                await tx.order_items.create({
+                const createdItem = await tx.order_items.create({
                     data: {
                         order_id: order.id,
                         item_id: item.id,
                         name: item.name,
-                        price: item.price,
-                        quantity: item.quantity,
+                        price: Number(item.price),
+                        quantity: Number(item.quantity),
                     },
                 });
+                createdItems.push(createdItem);
             }
 
             // Update table order count
             await tx.tables.update({
-                where: {id: parseInt(tableId)},
+                where: {id: parsedTableId},
                 data: {current_order_count: orderNumber},
             });
 
-            // Return the created order (fetched outside transaction for consistency)
-            return await Order.getOrderById(order.id);
+            // Return the order with transformed structure
+            return {
+                id: order.id,
+                table_id: order.table_id,
+                order_number: order.order_number,
+                total_price: order.total_price,
+                status: order.status,
+                table_number: table.table_number,
+                waiter_name: null, // Set to null as waiter_id is not assigned in this method
+                items: createdItems.map(item => ({
+                    id: item.item_id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity,
+                })),
+            };
         });
     }
 

@@ -17,6 +17,10 @@ const CustomerMenu = () => {
     const [showScrollToTop, setShowScrollToTop] = useState(false);
     const {socket} = useContext(SocketContext);
 
+    // Constants
+    const API_URL = '/api/orders';
+    const DEFAULT_TABLE_ID = 7;
+
     useEffect(() => {
         axios.get('/api/menu')
             .then(response => {
@@ -29,7 +33,7 @@ const CustomerMenu = () => {
                 setLoading(false);
                 setNotification({
                     message: 'Greška pri učitavanju menija',
-                    type: 'error'
+                    type: 'error',
                 });
             });
     }, []);
@@ -47,13 +51,8 @@ const CustomerMenu = () => {
             return [...prev, {...item, quantity: 1}];
         });
 
-        // Show floating cart button
         setShowFloatingCart(true);
-
-        // Hide floating cart after 3 seconds
-        setTimeout(() => {
-            setShowFloatingCart(false);
-        }, 3000);
+        setTimeout(() => setShowFloatingCart(false), 3000);
     };
 
     const removeFromCart = (itemId) => {
@@ -75,21 +74,14 @@ const CustomerMenu = () => {
     const scrollToCart = () => {
         const cartSection = document.getElementById('cart-section');
         if (cartSection) {
-            cartSection.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
+            cartSection.scrollIntoView({behavior: 'smooth', block: 'start'});
         }
     };
 
     const scrollToTop = () => {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
+        window.scrollTo({top: 0, behavior: 'smooth'});
     };
 
-    // Listen for scroll events to show/hide scroll to top button
     useEffect(() => {
         const handleScroll = () => {
             const cartSection = document.getElementById('cart-section');
@@ -104,73 +96,91 @@ const CustomerMenu = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [cart.length]);
 
+    /**
+     * Places an order by sending cart items to the server.
+     * @returns {Promise<void>}
+     */
     const placeOrder = async () => {
-        if (cart.length === 0) return;
+        if (!cart || cart.length === 0) {
+            setNotification({
+                message: 'Korpa je prazna. Dodajte stavke pre slanja porudžbine.',
+                type: 'error',
+            });
+            logger.warn('Empty cart detected', {tableId, cart});
+            return;
+        }
+
+        const parsedTableId = parseInt(tableId);
+        if (isNaN(parsedTableId) || parsedTableId <= 0) {
+            setNotification({
+                message: 'Nevažeći ID stola. Pokušajte ponovo.',
+                type: 'error',
+            });
+            logger.warn('Invalid tableId', {tableId, parsedTableId});
+            return;
+        }
 
         const order = {
-            table_id: parseInt(tableId) || 1, // Use tableId from URL or default to 1
+            table_id: parsedTableId || DEFAULT_TABLE_ID,
             items: cart.map(item => ({
                 id: item.id,
                 name: item.name,
-                price: item.price,
-                quantity: item.quantity
+                price: Number(item.price),
+                quantity: Number(item.quantity),
             })),
-            total_price: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+            total_price: cart.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0),
         };
 
-        // Validate order data
         const validationErrors = validateOrder(cart);
         if (validationErrors.length > 0) {
-            logger.warn('Order validation failed', {errors: validationErrors, cart});
             setNotification({
                 message: `Greška validacije: ${validationErrors.join(', ')}`,
-                type: 'error'
+                type: 'error',
             });
+            logger.warn('Order validation failed', {errors: validationErrors, order});
             return;
         }
 
         try {
             const startTime = Date.now();
-            const response = await fetch('/api/orders', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify(order)
-            });
+            const response = await axios.post(API_URL, order);
 
             const duration = Date.now() - startTime;
-            logger.logApiCall('/api/orders', 'POST', response.status, duration);
+            logger.logApiCall(API_URL, 'POST', response.status, duration);
 
-            if (response.ok) {
-                const result = await response.json();
-                logger.info('Order placed successfully', {orderId: result.id, tableId: result.table_id});
-                setCart([]);
-                setNotification({
-                    message: 'Vaša porudžbina je uspešno poslata! Konobar će je uskoro isporučiti.',
-                    type: 'success'
+            logger.info('Order placed successfully', {orderId: response.data.id, tableId: response.data.table_id});
+            setCart([]);
+            setNotification({
+                message: 'Vaša porudžbina je uspešno poslata! Konobar će je uskoro isporučiti.',
+                type: 'success',
+            });
+
+            // Emit socket event for real-time order notification
+            if (socket) {
+                socket.emit('newOrder', {
+                    orderId: response.data.id,
+                    tableId: response.data.table_id,
+                    total_price: order.total_price,
+                    items: order.items,
                 });
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to place order');
             }
         } catch (error) {
-            logger.error('Error placing order', {error: error.message, order});
+            const errorMessage = error.response?.data?.error || error.message || 'Nepoznata greška';
             setNotification({
-                message: `Greška pri slanju porudžbine: ${error.message}. Pokušajte ponovo.`,
-                type: 'error'
+                message: `Greška pri slanju porudžbine: ${errorMessage}. Pokušajte ponovo.`,
+                type: 'error',
+            });
+            logger.error('Error placing order', {
+                error: errorMessage,
+                status: error.response?.status,
+                order,
             });
         }
     };
 
-    // Get unique categories from menu data
     const uniqueCategories = [...new Set(menu.map(item => item.category))];
     const categories = ['all', ...uniqueCategories];
-    const filteredMenu = selectedCategory === 'all'
-        ? menu
-        : menu.filter(item => item.category === selectedCategory);
-
+    const filteredMenu = selectedCategory === 'all' ? menu : menu.filter(item => item.category === selectedCategory);
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -199,9 +209,10 @@ const CustomerMenu = () => {
                     <p className="text-gray-400 mb-1">Cafe Menu</p>
                     {tableId && (
                         <div className="mb-2">
-              <span className="inline-block bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold">
-                Sto {tableId}
-              </span>
+                            <span
+                                className="inline-block bg-blue-600 text-white px-3 py-1 rounded-lg text-sm font-semibold">
+                                Sto {tableId}
+                            </span>
                             <span className="block text-xs opacity-75">Table {tableId}</span>
                         </div>
                     )}
@@ -235,19 +246,19 @@ const CustomerMenu = () => {
                                                                         category === 'cocktails' ? 'Kokteli' :
                                                                             category}
                                 <span className="block text-xs opacity-75">
-                  {category === 'all' ? 'All' :
-                      category === 'coffee' ? 'Coffee' :
-                          category === 'soda' ? 'Soda' :
-                              category === 'spirits' ? 'Spirits' :
-                                  category === 'beer' ? 'Beer' :
-                                      category === 'wine' ? 'Wine' :
-                                          category === 'energy' ? 'Energy' :
-                                              category === 'water' ? 'Water' :
-                                                  category === 'juice' ? 'Juice' :
-                                                      category === 'tea' ? 'Tea' :
-                                                          category === 'cocktails' ? 'Cocktails' :
-                                                              category}
-                </span>
+                                    {category === 'all' ? 'All' :
+                                        category === 'coffee' ? 'Coffee' :
+                                            category === 'soda' ? 'Soda' :
+                                                category === 'spirits' ? 'Spirits' :
+                                                    category === 'beer' ? 'Beer' :
+                                                        category === 'wine' ? 'Wine' :
+                                                            category === 'energy' ? 'Energy' :
+                                                                category === 'water' ? 'Water' :
+                                                                    category === 'juice' ? 'Juice' :
+                                                                        category === 'tea' ? 'Tea' :
+                                                                            category === 'cocktails' ? 'Cocktails' :
+                                                                                category}
+                                </span>
                             </button>
                         ))}
                     </div>
@@ -296,8 +307,8 @@ const CustomerMenu = () => {
                                 {totalItems > 0 && (
                                     <span
                                         className="absolute -top-2 -right-2 sm:-top-3 sm:-right-3 bg-red-500 text-white text-sm sm:text-base rounded-full w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 flex items-center justify-center font-bold">
-                    {totalItems}
-                  </span>
+                                        {totalItems}
+                                    </span>
                                 )}
                             </div>
                             <div className="flex flex-col items-start">
@@ -334,7 +345,6 @@ const CustomerMenu = () => {
                         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-100 mb-3 sm:mb-4 md:mb-6">Vaša
                             porudžbina</h2>
                         <p className="text-gray-400 text-xs sm:text-sm mb-1">Your Order</p>
-
                         <div className="space-y-2 sm:space-y-3 md:space-y-4 mb-3 sm:mb-4 md:mb-6">
                             {cart.map(item => (
                                 <div key={item.id}
@@ -354,8 +364,8 @@ const CustomerMenu = () => {
                                             </button>
                                             <span
                                                 className="text-sm sm:text-base md:text-lg font-semibold text-gray-100 min-w-[1.5rem] sm:min-w-[2rem] text-center">
-                        {item.quantity}
-                      </span>
+                                                {item.quantity}
+                                            </span>
                                             <button
                                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                                 className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 bg-gray-700 text-gray-100 rounded hover:bg-gray-600 transition-colors shadow-lg text-xs sm:text-sm"
@@ -365,8 +375,8 @@ const CustomerMenu = () => {
                                         </div>
                                         <span
                                             className="text-sm sm:text-base md:text-lg lg:text-xl font-bold text-emerald-400">
-                      {Number(item.price * item.quantity).toFixed(0)} RSD
-                    </span>
+                                            {Number(item.price * item.quantity).toFixed(0)} RSD
+                                        </span>
                                         <button
                                             onClick={() => removeFromCart(item.id)}
                                             className="text-red-400 hover:text-red-300 transition-colors text-xs sm:text-sm"
@@ -378,7 +388,6 @@ const CustomerMenu = () => {
                                 </div>
                             ))}
                         </div>
-
                         <div className="border-t border-gray-700 pt-3 sm:pt-4 md:pt-6">
                             <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
                                 <span className="text-lg sm:text-xl md:text-2xl font-bold text-gray-100">Ukupno:</span>
@@ -410,4 +419,4 @@ const CustomerMenu = () => {
     );
 };
 
-export default CustomerMenu; 
+export default CustomerMenu;

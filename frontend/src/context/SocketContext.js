@@ -17,7 +17,7 @@ export const SocketProvider = ({children}) => {
     useEffect(() => {
         // Connect to socket using proxy
         const socket = io('http://localhost:3003', {
-            withCredentials: true,
+            withCredentials: false,
         });
 
         setSocket(socket);

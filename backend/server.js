@@ -5,8 +5,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cookieParser = require('cookie-parser');
 const {PrismaClient} = require('./generated/prisma');
-const routes = require('./routes/routes');
 const {initializeSocket} = require("./sockets/sockets");
+const routes = require("./routes/routes");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -24,7 +24,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 /* ---------- REST routes ---------- */
-app.use('/api', routes);
+app.use('/api', routes(io));
 
 /* ---------- Socket.IO initialization ---------- */
 initializeSocket(io);
