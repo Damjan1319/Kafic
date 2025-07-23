@@ -1,0 +1,41 @@
+databases:
+  - name: bar_ordering_system_db
+    databaseName: bar_ordering_system_db
+    user: bar_ordering_system_db_user
+    plan: free
+
+services:
+  - type: web
+    name: bar-ordering-system-api
+    env: node
+    buildCommand: npm install && npx prisma generate && npx prisma migrate deploy
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bar_ordering_system_db
+          property: connectionString
+      - key: DB_HOST
+        value: dpg-disctkqbd0c407386mtg-a
+      - key: DB_NAME
+        value: bar_ordering_system_db
+      - key: DB_PASSWORD
+        sync: false  # Use actual value from dashboard
+      - key: DB_PORT
+        value: 5432
+      - key: DB_USER
+        value: bar_ordering_system_db_user
+      - key: FRONTEND_URL
+        value: https://bar-ordering-system.onrender.com
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
+
+  - type: static
+    name: bar-ordering-system
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://bar-ordering-system-api.onrender.com
+    autoDeploy: true
